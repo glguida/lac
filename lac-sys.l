@@ -4,3 +4,6 @@
 (defmacro 1+  (x) `(+ 1 ,x))
 (defmacro incf (x) `(setq ,x (1+ ,x)))
 
+(defun counter-class (x) (lambda () (incf x)))
+(define counter (counter-class 0))
+

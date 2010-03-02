@@ -127,6 +127,18 @@ void lac_print(FILE *fd, lreg_t lr)
       fprintf(fd, "( ");
       lac_print_cons(fd, lr);
       break;
+    case LREG_MACRO:
+      fprintf(fd, "<#MACRO>");
+      break;
+    case LREG_LAMBDA:
+      fprintf(fd, "<#LAMBDA>");
+      break;
+    case LREG_LLPROC:
+      fprintf(fd, "<#LLPROC>");
+      break;
+    case LREG_SFORM:
+      fprintf(fd, "<#SFORM>");
+      break;
     default:
       if ( ext_types[LREG_TYPE(lr)] != NULL )
 	ext_types[LREG_TYPE(lr)]->print(fd, lr);
@@ -750,6 +762,7 @@ static void library_init(void)
 
 int main()
 {
+  library_init();
   repl(stdin);
   printf("\ngoodbye!\n");
 }
@@ -758,5 +771,4 @@ LAC_INITF(lac_init)
 {
   GC_init();
   machine_init();
-  library_init();  
 }
