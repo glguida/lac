@@ -1,2 +1,5 @@
 LAC is a laconic lisp interpreter.
 
+Lexically scoped, single-namespace, extensible.
+
+This is mostly a free time hack to learn lisp internals.
