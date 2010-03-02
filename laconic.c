@@ -751,7 +751,7 @@ static void repl(FILE *fd)
 
 static void library_init(void)
 {
-  FILE *fd = fopen("lac-sys.l", "r");
+  FILE *fd = fopen("sys.lac", "r");
   if ( fd == NULL )
     {
       fprintf(stderr, "(ERROR: SYSTEM LIBRARY NOT FOUND)\n");
