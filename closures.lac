@@ -1,3 +1,0 @@
-(defun counter-class (x) (lambda () (incf x)))
-(define counter (counter-class 0))
-

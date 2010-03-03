@@ -1,0 +1,18 @@
+(defun counter-class (x) (lambda () (incf x)))
+(define counter (counter-class 0))
+
+(defun fact (n)
+  (cond 
+    ((eq n 1) 1) 
+    (t (* n (fact (- n 1))))))
+
+(defun sum (n)
+  (cond 
+    ((eq n 1) 1) 
+    (t (+ n (sum (- n 1))))))
+
+(defun fib (n) 
+  (cond 
+    ((eq n 0) 0)
+    ((eq n 1) 1) 
+    (t (+ (fib (- n 2)) (fib (- n 1))))))

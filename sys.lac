@@ -4,4 +4,4 @@
 (defmacro 1+  (x) `(+ 1 ,x))
 (defmacro incf (x) `(setq ,x (1+ ,x)))
 
-(load "closures.lac")
+(load "examples.lac")
