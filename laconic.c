@@ -596,9 +596,6 @@ LAC_API static int proc_labels(lreg_t args, lreg_t *env, lreg_t *res)
   selfbind = cons(lbl, 0);
   *res = LREG(LREG_PTR(cons(cdr(args), cons(selfbind, *env))), LREG_LAMBDA);
   get_cons(selfbind)->d = *res;
-
-
-  printf("uuu! "); lac_print(stdout, cons(selfbind, *env)); printf("\n");
   return 0;
 }
 
