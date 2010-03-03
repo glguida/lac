@@ -777,6 +777,7 @@ static void library_init(void)
       return;
     }
   repl(fd);
+  fclose(fd);
 }
 
 int main()
