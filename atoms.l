@@ -42,15 +42,15 @@ SIGN [+|-]
 {WHITESPACE}
 
 {SIGN}?{DIGIT}+ { long *n = GC_MALLOC(sizeof(unsigned long));
-           *n = strtol(yytext, (char **)NULL, 10);
-           *lvalp = LREG(LREG_PTR(n), LREG_INTEGER);
-           return ATOM;
+                  *n = strtol(yytext, (char **)NULL, 10);
+                  *lvalp = LREG(n, LREG_INTEGER);
+                  return ATOM;
 }
 
-#x{HEXDIGIT}+ { int *n = GC_MALLOC(sizeof(unsigned long));
-             *n = strtol(yytext+2, (char **)NULL, 16);
-             *lvalp = LREG(LREG_PTR(n), LREG_INTEGER);
-             return ATOM;
+#x{HEXDIGIT}+ { long *n = GC_MALLOC(sizeof(unsigned long));
+                *n = strtol(yytext+2, (char **)NULL, 16);
+                *lvalp = LREG(n, LREG_INTEGER);
+                return ATOM;
 }
 
 \"[^\"]*\" { char *s = GC_MALLOC(strlen(yytext) - 1);
