@@ -668,6 +668,25 @@ LAC_API static int proc_setq(lreg_t args, lreg_t *env, lreg_t *res)
   return 0;
 }
 
+static void repl(FILE *fd);
+LAC_API static int proc_load(lreg_t args, lreg_t *env, lreg_t *res)
+{
+  int r;
+  _EXPECT_ARGS(args, 1);
+
+  if ( LREG_TYPE(car(args)) != LREG_STRING )
+    _ERROR_AND_RET("Syntax error in load");
+
+  FILE *fd = fopen((char *)LREG_PTR(car(args)), "r");
+  if ( fd == NULL )
+    _ERROR_AND_RET("Could not open file");
+
+  repl(fd); // XXX: ret value?
+  fclose(fd);
+  *res = sym_true;
+  return 0;
+}
+
 
 /*
  * Initialization Functions
@@ -705,6 +724,7 @@ static void machine_init(void)
   bind_symbol(register_symbol("CAR"), llproc_to_lreg(proc_car));
   bind_symbol(register_symbol("CDR"), llproc_to_lreg(proc_cdr));
   bind_symbol(register_symbol("EQ"), llproc_to_lreg(proc_eq));
+  bind_symbol(register_symbol("LOAD"), llproc_to_lreg(proc_load));
   
   sym_quasiquote = register_symbol("QUASIQUOTE");
   bind_symbol(sym_quasiquote, sform_to_lreg(proc_quasiquote));
