@@ -21,10 +21,11 @@
 #include "laconic.h"
 #include <gc/gc.h>
 #include <stdio.h>
+#include <limits.h>
 
 static void int_print(FILE *fd, lreg_t lr)
 {
-  fprintf(fd, "%ld", *(long*)LREG_PTR(lr));
+  fprintf(fd, "%ld ", *(long*)LREG_PTR(lr));
 }
 
 static int int_eval(lreg_t lr, lreg_t *res)
@@ -59,6 +60,10 @@ LAC_API static int proc_plus(lreg_t args, lreg_t *env, lreg_t *res)
   long n1, n2, *n;
   _BINOP_CHECKS(n1, n2, n);
 
+  if ( ((n1>0) && (n2>0) && (n1 > (LONG_MAX-n2))) 
+       || ((n1<0) && (n2<0) && (n1 < (LONG_MIN-n2))) )
+    _ERROR_AND_RET("+: Integer overflow\n");
+
   *n = n1 + n2;
 
   *res = LREG(n, LREG_INTEGER);
@@ -70,17 +75,60 @@ LAC_API static int proc_minus(lreg_t args, lreg_t *env, lreg_t *res)
   long n1, n2, *n;
   _BINOP_CHECKS(n1, n2, n);
 
+  if ( ((n1>0) && (n2 < 0) && (n1 > (LONG_MAX+n2)))
+       || ((n1<0) && (n2>0) && (n1 < (LONG_MIN + n2))) )
+    _ERROR_AND_RET("-: Integer signed overflow\n");
+  
   *n = n1 - n2;
-
+  
   *res = LREG(n, LREG_INTEGER);
   return 0;
 }
+
+LAC_API static int proc_star(lreg_t args, lreg_t *env, lreg_t *res)
+{
+  long n1, n2, *n;
+  long long tmp;
+  _BINOP_CHECKS(n1, n2, n);
+
+  if ( n1 == 0 || n2 == 0 )
+    goto mul_res;
+
+  if ( n1 > 0 )
+    if ( n2 > 0 ) {
+      if ( n1>(LONG_MAX/n2) )
+	goto mul_of;
+    } else {
+      if ( n2<(LONG_MIN/n1) )
+	goto mul_of;
+    }
+  else
+    if ( n2 > 0 ) {
+      if ( n1<(LONG_MIN/n2) )
+	goto mul_of;
+    } else {
+      if ( n2 < (LONG_MAX/n1) )
+	goto mul_of;
+    }
+
+ mul_res:
+  *n = n1 * n2;
+  *res = LREG(n, LREG_INTEGER);
+  return 0;
+
+ mul_of:
+  _ERROR_AND_RET("*: Integer sign overflow\n");
+}
+
+LAC_DEFINE_TYPE_PFUNC(integer, LREG_INTEGER);
 
 static ext_type_t int_ty = { .print = int_print, .eval = int_eval, .eq = int_eq };
 
 LAC_INITF(int_init)
 {
   ext_type_register(LREG_INTEGER, &int_ty);
+  bind_symbol(register_symbol("INTEGERP"), llproc_to_lreg(LAC_TYPE_PFUNC(integer)));
   bind_symbol(register_symbol("+"), llproc_to_lreg(proc_plus));
   bind_symbol(register_symbol("-"), llproc_to_lreg(proc_minus));
+  bind_symbol(register_symbol("*"), llproc_to_lreg(proc_star));
 }

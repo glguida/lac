@@ -41,9 +41,12 @@ static void string_eq(lreg_t arg1, lreg_t arg2, lreg_t *res)
   *res = strcmp(s1, s2) != 0 ? sym_false : sym_true;
 }
 
+LAC_DEFINE_TYPE_PFUNC(string, LREG_STRING)
+
 static ext_type_t string_ty = { .print = string_print, .eval = string_eval, .eq = string_eq };
 
 LAC_INITF(string_init)
 {
   ext_type_register(LREG_STRING, &string_ty);
+  bind_symbol(register_symbol("STRINGP"), llproc_to_lreg(LAC_TYPE_PFUNC(string)));
 }

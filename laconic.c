@@ -118,7 +118,7 @@ void lac_print(FILE *fd, lreg_t lr)
   switch ( LREG_TYPE(lr) )
     {
     case LREG_NIL:
-      fprintf(fd, "()");
+      fprintf(fd, "() ");
       break;
     case LREG_SYMBOL:
       fprintf(fd, "%s ", (char *)LREG_PTR(lr));
@@ -128,16 +128,16 @@ void lac_print(FILE *fd, lreg_t lr)
       lac_print_cons(fd, lr);
       break;
     case LREG_MACRO:
-      fprintf(fd, "<#MACRO>");
+      fprintf(fd, "<#MACRO> ");
       break;
     case LREG_LAMBDA:
-      fprintf(fd, "<#LAMBDA>");
+      fprintf(fd, "<#LAMBDA> ");
       break;
     case LREG_LLPROC:
-      fprintf(fd, "<#LLPROC>");
+      fprintf(fd, "<#LLPROC> ");
       break;
     case LREG_SFORM:
-      fprintf(fd, "<#SFORM>");
+      fprintf(fd, "<#SFORM> ");
       break;
     default:
       if ( ext_types[LREG_TYPE(lr)] != NULL )
@@ -358,7 +358,7 @@ int apply(lreg_t proc, lreg_t args, lreg_t *env, lreg_t *res)
       }
       break;
     default:
-      lac_error("Not a procedure");
+      fprintf(stderr, "Not a procedure: "); lac_print(stderr, proc); fprintf(stderr, "\n");
       r = -1;
     }
 
@@ -379,7 +379,9 @@ static int eval_sym(lreg_t sym, lreg_t *env, lreg_t *res)
   if (r != 0)
     {
       if (r == 1)
-	lac_error("Symbol not defined.");
+	{
+	  fprintf(stderr, "Symbol not defined: "); lac_print(stderr, sym); printf("\n");
+	}
       return -1;
     }
 

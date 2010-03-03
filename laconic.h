@@ -175,4 +175,17 @@ lreg_t register_symbol(const char *s);
   } while ( 0 )
 
 
+#define LAC_DEFINE_TYPE_PFUNC(typename, typeno)				\
+LAC_API static int proc_##typename##p (lreg_t args, lreg_t *env, lreg_t *res) \
+{									\
+  _EXPECT_ARGS(args, 1);						\
+  if ( LREG_TYPE(car(args)) == typeno )					\
+    *res = sym_true;							\
+  else									\
+    *res = sym_false;							\
+  return 0;								\
+}
+
+#define LAC_TYPE_PFUNC(typename) proc_##typename##p
+
 #endif /* LACONIC_H */
