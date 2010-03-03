@@ -45,7 +45,7 @@ enum
     LREG_INTEGER,
     /* Not implemented yet */
     LREG_FLOAT,
-    LREG_TYPES
+    LREG_TYPES = 16
   };
 
 struct cons

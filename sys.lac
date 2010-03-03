@@ -1,4 +1,4 @@
-(define defun (macro (name binds body) `(define ,name (lambda ,binds ,body))))
+(define defun (macro (name binds body) `(define ,name (labels ,name ,binds ,body))))
 (define defmacro (macro (name binds body) `(define ,name (macro ,binds ,body))))
 
 (defmacro 1+  (x) `(+ 1 ,x))

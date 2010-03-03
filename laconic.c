@@ -582,6 +582,26 @@ LAC_API static int proc_cond(lreg_t args, lreg_t *env, lreg_t *res)
   return 0;
 }
 
+LAC_API static int proc_labels(lreg_t args, lreg_t *env, lreg_t *res)
+{
+  /* At least 3 arguments required. */
+  _EXPECT_MIN_ARGS(args, 3);
+  lreg_t lbl = car(args);
+  lreg_t binds = car(cdr(args));
+  lreg_t selfbind;
+
+  if ( !is_cons(binds) && binds != NIL )
+    _ERROR_AND_RET("Syntax error in labels");
+
+  selfbind = cons(lbl, 0);
+  *res = LREG(LREG_PTR(cons(cdr(args), cons(selfbind, *env))), LREG_LAMBDA);
+  get_cons(selfbind)->d = *res;
+
+
+  printf("uuu! "); lac_print(stdout, cons(selfbind, *env)); printf("\n");
+  return 0;
+}
+
 /* Special Form */
 LAC_API static int proc_lambda(lreg_t args, lreg_t *env, lreg_t *res)
 {
@@ -718,6 +738,7 @@ static void machine_init(void)
   bind_symbol(register_symbol("DEFINE"), sform_to_lreg(proc_define));
   bind_symbol(register_symbol("MACRO"), sform_to_lreg(proc_macro));
   bind_symbol(register_symbol("SETQ"), sform_to_lreg(proc_setq));
+  bind_symbol(register_symbol("LABELS"), sform_to_lreg(proc_labels));
 
   bind_symbol(register_symbol("CONS"), llproc_to_lreg(proc_cons));
   bind_symbol(register_symbol("CAR"), llproc_to_lreg(proc_car));
