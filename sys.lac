@@ -4,4 +4,17 @@
 (defmacro 1+  (x) `(+ 1 ,x))
 (defmacro incf (x) `(setq ,x (1+ ,x)))
 
+(defmacro and (x y)
+  `(cond (,x (cond (,y ,y)))))
+
+(defmacro or (x y)
+  `(cond (,x ,x)
+	 (,y ,y)))
+
+(defun equal (x y) 
+  (cond
+    ((and (stringp x) (stringp y)) (string-equal x y))
+    (t                             (eq x y))))
+       
+
 (load "examples.lac")
