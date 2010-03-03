@@ -145,6 +145,9 @@ static void f (void)
 
 void bind_symbol(lreg_t sym, lreg_t val);
 lreg_t register_symbol(const char *s);
+int eval(lreg_t list, lreg_t *env, lreg_t *res);
+int apply(lreg_t proc, lreg_t args, lreg_t *env, lreg_t *res);
+
 
 #define _ERROR_AND_RET(err, ...)		\
   do {						\

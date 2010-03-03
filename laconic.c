@@ -235,8 +235,6 @@ int assq(lreg_t key, lreg_t alist, lreg_t *res)
  * Eval/Apply
  */
 
-int eval(lreg_t list, lreg_t *env, lreg_t *res);
-
 int evlist(lreg_t list, lreg_t *env, lreg_t *res)
 {
   int r;
