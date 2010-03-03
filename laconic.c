@@ -403,7 +403,7 @@ static int eval_cons(lreg_t cons, lreg_t *env, lreg_t *res)
 
 int eval(lreg_t sexp, lreg_t *env, lreg_t *res)
 {
-  int r;
+  int r = 0;
 
   switch (LREG_TYPE(sexp))
     {
