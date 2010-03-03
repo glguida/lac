@@ -30,8 +30,8 @@
 
 WHITESPACE [\ \t\n]
 DIGIT [0-9]
-HEXDIGIT [0-9a-f]
-ALPHA [A-Z]
+HEXDIGIT [0-9a-fa-z]
+ALPHA [A-Za-z]
 SP_INIT [/:<=>?^_~!$%&+-]
 SPECIAL [/:<=>?^_~!$%&+-.@] 
 SIGN [+|-]
@@ -50,6 +50,12 @@ SIGN [+|-]
 #x{HEXDIGIT}+ { int *n = GC_MALLOC(sizeof(unsigned long));
              *n = strtol(yytext+2, (char **)NULL, 16);
              *lvalp = LREG(LREG_PTR(n), LREG_INTEGER);
+             return ATOM;
+}
+
+\"[^\"]*\" { char *s = GC_MALLOC(strlen(yytext) - 1);
+             memcpy(s, yytext+1, strlen(yytext) - 2);
+             *lvalp = LREG(s, LREG_STRING);
              return ATOM;
 }
 

@@ -25,7 +25,7 @@
 #include <assert.h>
 
 typedef uintptr_t lreg_t;
-#define LREG_TYPE_MASK 0x7
+#define LREG_TYPE_MASK 0xf
 #define LREG_PTR(lr) ((uintptr_t)lr & ~LREG_TYPE_MASK)
 #define LREG_TYPE(lr) (lr & LREG_TYPE_MASK)
 #define LREG(ptr, ty) (lreg_t)(LREG_PTR(ptr) | LREG_TYPE(ty))
@@ -41,8 +41,9 @@ enum
     LREG_LAMBDA,    /* Lambda procedures. */
     LREG_MACRO,     /* Macro procedures. */
     LREG_NIL,       /* NIL */
-    /* Not implemented yet */
+    LREG_STRING,
     LREG_INTEGER,
+    /* Not implemented yet */
     LREG_FLOAT,
     LREG_TYPES
   };
