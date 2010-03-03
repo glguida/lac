@@ -387,7 +387,6 @@ static int eval_sym(lreg_t sym, lreg_t *env, lreg_t *res)
   return 0;
 }
 
-/* XXX: Implement lac_ctx e includi env, per risolvere sto problema */
 static int eval_cons(lreg_t cons, lreg_t *env, lreg_t *res)
 {
   int r;
