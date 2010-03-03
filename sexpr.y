@@ -59,8 +59,7 @@ listelem: /*EMPTY*/ { $$ = NIL; }
 
 %%
 
-yyerror (s)  /* Called by yyparse on error */
-char *s;
+yyerror ()  /* Called by yyparse on error */
 {
   printf ("Syntax Error\n");
 }
