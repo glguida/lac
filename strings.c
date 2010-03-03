@@ -36,9 +36,48 @@ static int string_eval(lreg_t lr, lreg_t *res)
 
 static void string_eq(lreg_t arg1, lreg_t arg2, lreg_t *res)
 {
+  lreg_t ans = sym_false;
+  if ( arg1 == arg2 )
+    ans = sym_true;
+  *res = ans;
+}
+
+static int string_compare(lreg_t arg1, lreg_t arg2)
+{
   char *s1 = (char *)LREG_PTR(arg1);
   char *s2 = (char *)LREG_PTR(arg2);
-  *res = strcmp(s1, s2) != 0 ? sym_false : sym_true;
+  return strcmp(s1, s2);
+}
+
+#define BINARY_STR_OP_CHECKS(args)			\
+  _EXPECT_ARGS(args, 2);				\
+  lreg_t s1 = car(args);				\
+  lreg_t s2 = car(cdr(args));				\
+							\
+  if ( LREG_TYPE(s1) != LREG_TYPE(s2)			\
+       || !(LREG_TYPE(s1) == LREG_STRING) )		\
+    _ERROR_AND_RET("Syntax error in string-lessp");
+
+
+LAC_API int proc_string_lessp(lreg_t args, lreg_t *env, lreg_t *res)
+{
+  BINARY_STR_OP_CHECKS(args);
+  *res = string_compare(s1, s2) >= 0 ? sym_false : sym_true;
+  return 0;
+}
+
+LAC_API static int proc_string_greaterp(lreg_t args, lreg_t *env, lreg_t *res)
+{
+  BINARY_STR_OP_CHECKS(args);
+  *res = string_compare(s1, s2) <= 0 ? sym_false : sym_true;
+  return 0;
+}
+
+LAC_API static int proc_string_equal(lreg_t args, lreg_t *env, lreg_t *res)
+{
+  BINARY_STR_OP_CHECKS(args);
+  *res = string_compare(s1, s2) != 0 ? sym_false : sym_true;
+  return 0;
 }
 
 LAC_DEFINE_TYPE_PFUNC(string, LREG_STRING)
@@ -49,4 +88,7 @@ LAC_INITF(string_init)
 {
   ext_type_register(LREG_STRING, &string_ty);
   bind_symbol(register_symbol("STRINGP"), llproc_to_lreg(LAC_TYPE_PFUNC(string)));
+  bind_symbol(register_symbol("STRING-LESSP"), llproc_to_lreg(proc_string_lessp));
+  bind_symbol(register_symbol("STRING-GREATERP"), llproc_to_lreg(proc_string_greaterp));
+  bind_symbol(register_symbol("STRING-EQUAL"), llproc_to_lreg(proc_string_equal));
 }
