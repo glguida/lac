@@ -58,9 +58,9 @@ LAC_API static int proc_mapcar(lreg_t args, lreg_t *env, lreg_t *res)
 {
   _EXPECT_MIN_ARGS(args, 2);
   int r;
+  lreg_t mapargs;
   lreg_t fn = car(args);
   lreg_t lists = cdr(args);
-  lreg_t mapargs;
   lreg_t outlist = NIL, tail;
 
   switch ( LREG_TYPE(fn) )
@@ -101,7 +101,34 @@ LAC_API static int proc_mapcar(lreg_t args, lreg_t *env, lreg_t *res)
 
 }
 
+LAC_API static int proc_reduce(lreg_t args, lreg_t *env, lreg_t *res)
+{
+  _EXPECT_ARGS(args, 2);
+  int r;
+  lreg_t acc;
+  lreg_t fn = car(args);
+  lreg_t list;
+
+  if ( !is_cons(car(cdr(args))) )
+      _ERROR_AND_RET("Syntax error in reduce\n");
+
+  list = car(cdr(args));
+  acc = car(list);
+  list = cdr(list);
+
+  for ( ; list != NIL; list = cdr(list) )
+    {
+      r = apply(fn, cons(acc, cons(car(list), NIL)), env, &acc);
+      if ( r != 0 )
+	return r;
+    }
+
+  *res = acc;
+  return 0;
+}
+
 LAC_INITF(map_init)
 {
   bind_symbol(register_symbol("MAPCAR"), llproc_to_lreg(proc_mapcar));
+  bind_symbol(register_symbol("REDUCE"), llproc_to_lreg(proc_reduce));
 }
