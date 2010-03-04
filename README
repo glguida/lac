@@ -3,3 +3,20 @@ LAC is a laconic lisp interpreter.
 Lexically scoped, single-namespace, extensible.
 
 This is mostly a free time hack to learn lisp internals.
+
+---
+Extensibility: How to add new types
+
+1. Create a C file containing:
+
+- Three type specific functions
+  - 'eq
+  - 'print
+  - 'eval
+
+- an INIT function that register the ext_type to the system (will be
+  automatically executed at runtime, no need to change the main file)
+
+2. Add lexer rules to scan and allocate the new type in 'atoms.l
+
+3. Debug

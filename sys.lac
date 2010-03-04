@@ -7,9 +7,16 @@
 (defmacro and (x y)
   `(cond (,x (cond (,y ,y)))))
 
-(defmacro or (x y)
-  `(cond (,x ,x)
-	 (,y ,y)))
+(defmacro if (test true false)
+  `(cond (,test ,true) (t ,false)))
+
+(defmacro setq (sym val) 
+  `(set (quote ,sym) ,val))
+
+(defmacro 1+ (x) `(+ 1 ,x))
+(defmacro 1- (x) `(- ,x 1))
+(defmacro incf (x) `(setq ,x (1+ ,x)))
+(defmacro decf (x) `(setq ,x (1- ,x)))
 
 (defun equal (x y) 
   (cond
