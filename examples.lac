@@ -1,6 +1,3 @@
-(defun counter-class (x) (lambda () (incf x)))
-(define counter (counter-class 0))
-
 (defun fact (n)
   (cond 
     ((eq n 1) 1) 
@@ -11,8 +8,22 @@
     ((eq n 1) 1) 
     (t (+ n (sum (- n 1))))))
 
-(defun fib (n) 
+(defun fib (n)
   (cond 
     ((eq n 0) 0)
     ((eq n 1) 1) 
     (t (+ (fib (- n 2)) (fib (- n 1))))))
+
+; Lambda over Let over Lambda example
+(define counter-class (lambda () (let ((x 0)) (lambda () (incf x)))))
+; Two counters
+(define counter1 (counter-class))
+(define counter2 (counter-class))
+
+; Increment the counters
+(counter1)
+(counter1)
+(counter1)
+(counter1)
+(counter1)
+(counter2)

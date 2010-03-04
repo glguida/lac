@@ -707,29 +707,26 @@ LAC_API static int proc_define(lreg_t args, lreg_t *env, lreg_t *res)
   return 0;
 }
 
-/* Special Form */
-LAC_API static int proc_setq(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_set(lreg_t args, lreg_t *env, lreg_t *res)
 {
   int r;
   lreg_t set, alist = *env;
   _EXPECT_ARGS(args, 2);
 
   if ( !is_symbol(car(args)) )
-    _ERROR_AND_RET("Syntax error in setq\n");
+    _ERROR_AND_RET("Syntax error in set\n");
 
-  r = eval(car(cdr(args)), env, &set);
-  if ( r != 0 )
-    return r;
+  set = car(cdr(args));
 
   for ( ; alist != NIL; alist = cdr(alist) )
     {
       lreg_t a;
-      if ( !is_cons(a) )
-	{
-	  lac_error("Invalind env");
-	  return -1;
-	}
+      if ( !is_cons(alist) )
+	_ERROR_AND_RET("Invalid env\n");
+
       a = car(alist);
+      if ( !is_cons(a) )
+	_ERROR_AND_RET("Invalid env\n");
 
       if ( car(args) == car(a) )
 	{
@@ -795,7 +792,6 @@ static void machine_init(void)
   bind_symbol(register_symbol("LAMBDA"), sform_to_lreg(proc_lambda));
   bind_symbol(register_symbol("DEFINE"), sform_to_lreg(proc_define));
   bind_symbol(register_symbol("MACRO"), sform_to_lreg(proc_macro));
-  bind_symbol(register_symbol("SETQ"), sform_to_lreg(proc_setq));
   bind_symbol(register_symbol("LABELS"), sform_to_lreg(proc_labels));
 
   bind_symbol(register_symbol("CONS"), llproc_to_lreg(proc_cons));
@@ -803,6 +799,8 @@ static void machine_init(void)
   bind_symbol(register_symbol("CDR"), llproc_to_lreg(proc_cdr));
   bind_symbol(register_symbol("EQ"), llproc_to_lreg(proc_eq));
   bind_symbol(register_symbol("LOAD"), llproc_to_lreg(proc_load));
+  bind_symbol(register_symbol("SET"), llproc_to_lreg(proc_set));
+
   
   sym_quasiquote = register_symbol("QUASIQUOTE");
   bind_symbol(sym_quasiquote, sform_to_lreg(proc_quasiquote));
