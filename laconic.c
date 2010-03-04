@@ -37,6 +37,8 @@ lreg_t sym_false;
 lreg_t sym_quote;
 lreg_t sym_quasiquote;
 lreg_t sym_unquote;
+lreg_t sym_splice;
+lreg_t sym_rest;
 
 
 /*
@@ -286,9 +288,25 @@ int evbind(lreg_t binds, lreg_t args, lreg_t *env, lreg_t *res)
 	  lac_error("Incorrect binding list");
 	  return -1;
 	}
+      if ( car(binds) == sym_rest )
+	{
+	  if ( !is_cons(cdr(binds)) )
+	    {
+	      lac_error("Expected binding after &rest");
+	      return -1;
+	    }
+	  lenv = cons(cons(car(cdr(binds)), args), lenv);
+	  args = NIL;
+	  if ( cdr(cdr(binds)) != NIL )
+	    {
+	      lac_error("Syntax error in bindings\n");
+	      return -1;
+	    }
+	  break;
+	}
       if ( args == NIL )
 	{
-	  lac_error("Not enough argument to function.");
+	  lac_error("Not enough arguments to function.");
 	  return -1;
 	}
       lenv = cons(cons(car(binds), car(args)), lenv);
@@ -439,7 +457,7 @@ LAC_API static int proc_quote(lreg_t args, lreg_t *env, lreg_t *res)
   return 0;
 }
 
-static int _qquote(lreg_t sexp, lreg_t *env, lreg_t *res)
+static int _qquote(lreg_t sexp, lreg_t *env, lreg_t *first, lreg_t *last)
 {
   int r;
   switch ( LREG_TYPE(sexp) )
@@ -447,27 +465,70 @@ static int _qquote(lreg_t sexp, lreg_t *env, lreg_t *res)
     case LREG_CONS:
       if ( car(sexp) == sym_unquote )
 	{
-	  r = eval(car(cdr(sexp)), env, res);
+	  r = eval(car(cdr(sexp)), env, first);
 	  if ( r < 0 )
 	    return r;
-	  /* *res written by eval */
+	  /* * first written by eval */
+	}
+      else if ( car(sexp) == sym_splice )
+	{
+	  lreg_t tosplice;
+	  if ( last == NULL )
+	    {
+	      fprintf(stderr, "SPLICE expected on car only.\n");
+	      return -1;
+	    }
+
+	  r = eval(car(cdr(sexp)), env, &tosplice);
+	  if ( r < 0 )
+	    return r;
+
+	  switch( LREG_TYPE(tosplice) )
+	    {
+	      lreg_t tail = NIL;
+	    case LREG_CONS:
+	      *first = tail = tosplice;
+	      for ( ; tosplice != NIL && is_cons(cdr(tosplice)); 
+		    tosplice = cdr(tosplice) );
+	      *last = tosplice;
+	      break;
+
+	    default:
+	      *first = tosplice;
+	      break;
+	    }
 	}
       else
 	{
-	  lreg_t qqa, qqd;
+	  lreg_t qqa, qqd, qqalast = NIL;
 
-	  r = _qquote(car(sexp), env, &qqa);
-	  if ( r < 0 )
-	    return r;
-	  r = _qquote(cdr(sexp), env, &qqd);
+	  r = _qquote(car(sexp), env, &qqa, &qqalast);
 	  if ( r < 0 )
 	    return r;
 
-	  *res = cons(qqa, qqd);
+	  r = _qquote(cdr(sexp), env, &qqd, NULL);
+	  if ( r < 0 )
+	    return r;
+
+	  if ( qqalast != NIL )
+	    {
+	      if ( cdr(qqalast) == NIL  )
+		get_cons(qqalast)->d = qqd;
+	      else if ( qqd != NIL )
+		{
+		  fprintf(stderr, "Dotted pairs in spliced list can be"
+			  " present only when splicing is at end of a list\n");
+		  return -1;
+		}
+
+	      *first = qqa;
+	    }
+	  else
+	      *first = cons(qqa, qqd);
 	}
       break;
     default:
-      *res = sexp;
+      *first = sexp;
     }
        
   return 0;
@@ -477,7 +538,7 @@ static int _qquote(lreg_t sexp, lreg_t *env, lreg_t *res)
 LAC_API static int proc_quasiquote(lreg_t args, lreg_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 1);
-  return _qquote(car(args), env, res);
+  return _qquote(car(args), env, res, NULL);
 }
 
 LAC_API static int proc_car(lreg_t args, lreg_t *env, lreg_t *res)
@@ -746,6 +807,8 @@ static void machine_init(void)
   sym_quasiquote = register_symbol("QUASIQUOTE");
   bind_symbol(sym_quasiquote, sform_to_lreg(proc_quasiquote));
   sym_unquote = register_symbol("UNQUOTE");
+  sym_splice = register_symbol("SPLICE");
+  sym_rest = register_symbol("&REST");
 }
 
 static void repl(FILE *fd)

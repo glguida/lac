@@ -130,6 +130,7 @@ extern lreg_t sym_false;
 extern lreg_t sym_quote;
 extern lreg_t sym_quasiquote;
 extern lreg_t sym_unquote;
+extern lreg_t sym_splice;
 
 typedef struct {
   void (*print)(FILE *fd, lreg_t lr);

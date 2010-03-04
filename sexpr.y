@@ -31,6 +31,7 @@
 %parse-param { lreg_t *result }
 %token ATOM
 %token DELIMITER
+%token COMMA_AT
 
 %%
 
@@ -45,7 +46,8 @@ statement: sexp { $$ = $1;
 
 sexp:  ATOM { $$ = $1; }
        | '\'' sexp { $$ = cons(sym_quote, cons($2, NIL)); }
-| '`' sexp { $$ = cons(sym_quasiquote, cons($2, NIL)); }
+       | '`' sexp { $$ = cons(sym_quasiquote, cons($2, NIL)); }
+       | COMMA_AT sexp { $$ = cons(sym_splice, cons($2, NIL)); }
        | ',' sexp { $$ = cons(sym_unquote, cons($2, NIL)); }
        | '(' sexp '.' sexp ')' { $$ = cons($2,$4); }
        | '(' ')' { $$ = NIL; }

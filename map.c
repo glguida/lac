@@ -43,9 +43,11 @@ static int map_args(lreg_t lists, lreg_t *res)
 	}
 
       if ( outargs == NIL )
-	outargs = tail = cons(car(car(args)), NIL);
+	outargs = tail = cons(cons(sym_quote, cons(car(car(args)), NIL)), NIL);
       else
-	get_cons(tail)->d = tail = cons(car(car(args)), NIL);
+	get_cons(tail)->d = tail = cons(cons(sym_quote, 
+					     cons(car(car(args)), NIL)),
+					NIL);
 
       get_cons(args)->a = cdr(car(args));
     }
@@ -79,7 +81,6 @@ LAC_API static int proc_mapcar(lreg_t args, lreg_t *env, lreg_t *res)
     {
       lreg_t outelm;
       r = map_args(lists, &mapargs);
-      
       if ( r < 0 )
 	return r;
       

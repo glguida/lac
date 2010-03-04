@@ -33,7 +33,7 @@ DIGIT [0-9]
 HEXDIGIT [0-9a-fa-z]
 ALPHA [A-Za-z]
 SP_INIT [\*/:<=>?^_~!$%&+-]
-SPECIAL [\*/:<=>?^_~!$%&+-.@] 
+SPECIAL [\*/:<=>?^_~!$%&+-.] 
 SIGN [+|-]
 
 %%
@@ -68,7 +68,7 @@ SIGN [+|-]
   return ATOM;
 };
 
-
+,@ { return COMMA_AT; }
 
 . { return *yytext; }
 
