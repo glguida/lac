@@ -88,7 +88,6 @@ LAC_API static int proc_minus(lreg_t args, lreg_t *env, lreg_t *res)
 LAC_API static int proc_star(lreg_t args, lreg_t *env, lreg_t *res)
 {
   long n1, n2, *n;
-  long long tmp;
   _BINOP_CHECKS(n1, n2, n);
 
   if ( n1 == 0 || n2 == 0 )
@@ -120,6 +119,32 @@ LAC_API static int proc_star(lreg_t args, lreg_t *env, lreg_t *res)
   _ERROR_AND_RET("*: Integer sign overflow\n");
 }
 
+LAC_API static int proc_mod(lreg_t args, lreg_t *env, lreg_t *res)
+{
+  long n1, n2, *n;
+  _BINOP_CHECKS(n1, n2, n);
+
+  if ( (n2 == 0 ) || ( (n1 == LONG_MIN) && (n2 == -1) ) )
+      _ERROR_AND_RET("\%% would overflow or divide by zero\n");
+
+  *n = n1 % n2;
+  *res = LREG(n, LREG_INTEGER);
+  return 0;
+}
+
+LAC_API static int proc_div(lreg_t args, lreg_t *env, lreg_t *res)
+{
+  long n1, n2, *n;
+  _BINOP_CHECKS(n1, n2, n);
+
+  if ( (n2 == 0 ) || ( (n1 == LONG_MIN) && (n2 == -1) ) )
+      _ERROR_AND_RET("\%% would overflow or divide by zero\n");
+
+  *n = n1 / n2;
+  *res = LREG(n, LREG_INTEGER);
+  return 0;
+}
+
 LAC_DEFINE_TYPE_PFUNC(integer, LREG_INTEGER);
 
 static ext_type_t int_ty = { .print = int_print, .eval = int_eval, .eq = int_eq };
@@ -131,4 +156,6 @@ LAC_INITF(int_init)
   bind_symbol(register_symbol("+"), llproc_to_lreg(proc_plus));
   bind_symbol(register_symbol("-"), llproc_to_lreg(proc_minus));
   bind_symbol(register_symbol("*"), llproc_to_lreg(proc_star));
+  bind_symbol(register_symbol("%"), llproc_to_lreg(proc_mod));
+  bind_symbol(register_symbol("/"), llproc_to_lreg(proc_div));
 }
