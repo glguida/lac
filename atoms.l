@@ -32,7 +32,7 @@ WHITESPACE [\ \t\n]
 DIGIT [0-9]
 HEXDIGIT [0-9a-fa-z]
 ALPHA [A-Za-z]
-SP_INIT [\*/:<=>?^_~!$%&+-]
+SP_INIT [#\*/:<=>?^_~!$%&+-]
 SPECIAL [\*/:<=>?^_~!$%&+-.] 
 SIGN [+|-]
 

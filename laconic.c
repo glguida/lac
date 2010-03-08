@@ -742,6 +742,26 @@ LAC_API static int proc_set(lreg_t args, lreg_t *env, lreg_t *res)
   return 0;
 }
 
+LAC_DEFINE_TYPE_PFUNC(cons, LREG_CONS);
+LAC_DEFINE_TYPE_PFUNC(symbol, LREG_SYMBOL);
+
+LAC_API static int proc_gensym(lreg_t args, lreg_t *env, lreg_t *res)
+{
+  #define GENSYM "#GSYM"
+  static int id = 0;
+  int len;
+  char *s, *s1;
+  _EXPECT_ARGS(args, 0);
+  asprintf(&s1, "%s-%08x", GENSYM, id);
+  len = strlen(s1);
+  s = GC_malloc(len);
+  memcpy(s, s1, len);
+  free(s1);
+  *res = intern_symbol(s);
+  id++;
+  return 0;
+}
+
 static void repl(FILE *fd);
 LAC_API static int proc_load(lreg_t args, lreg_t *env, lreg_t *res)
 {
@@ -800,7 +820,10 @@ static void machine_init(void)
   bind_symbol(register_symbol("EQ"), llproc_to_lreg(proc_eq));
   bind_symbol(register_symbol("LOAD"), llproc_to_lreg(proc_load));
   bind_symbol(register_symbol("SET"), llproc_to_lreg(proc_set));
-
+  bind_symbol(register_symbol("GENSYM"), llproc_to_lreg(proc_gensym));
+  bind_symbol(register_symbol("CONSP"), llproc_to_lreg(LAC_TYPE_PFUNC(cons)));
+  bind_symbol(register_symbol("SYMBOLP"), llproc_to_lreg(LAC_TYPE_PFUNC(symbol)));
+	      
   
   sym_quasiquote = register_symbol("QUASIQUOTE");
   bind_symbol(sym_quasiquote, sform_to_lreg(proc_quasiquote));
