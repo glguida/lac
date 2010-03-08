@@ -56,7 +56,7 @@ static int string_compare(lreg_t arg1, lreg_t arg2)
 							\
   if ( LREG_TYPE(s1) != LREG_TYPE(s2)			\
        || !(LREG_TYPE(s1) == LREG_STRING) )		\
-    _ERROR_AND_RET("Syntax error in string-lessp");
+    _ERROR_AND_RET("Function requires two strings!\n");
 
 
 LAC_API int proc_string_lessp(lreg_t args, lreg_t *env, lreg_t *res)
