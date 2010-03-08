@@ -1,6 +1,9 @@
 (define defun (macro (name binds body) `(define ,name (labels ,name ,binds ,body))))
 (define defmacro (macro (name binds body) `(define ,name (macro ,binds ,body))))
 
+(define NIL ())
+(defun null (x) (eq x NIL))
+
 (defmacro caar (x) `(car (car ,x)))
 (defmacro cadr (x) `(car (cdr ,x)))
 (defmacro cdar (x) `(cdr (car ,x)))
@@ -55,6 +58,8 @@
 
 (defmacro 1+ (x) `(+ 1 ,x))
 (defmacro 1- (x) `(- ,x 1))
+(defun evenp (x) (eq (% x 2) 0))
+(defun oddp (x) (eq (% x 2) 1))
 (defmacro incf (x) `(setq ,x (1+ ,x)))
 (defmacro decf (x) `(setq ,x (1- ,x)))
 

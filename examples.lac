@@ -14,6 +14,12 @@
     ((eq n 1) 1) 
     (t (+ (fib (- n 2)) (fib (- n 1))))))
 
+; A tribute to XKCD #710
+(defun collatz (n)
+  (cond 
+    ((evenp n) (setq n (/ n 2))) 
+    (t (setq n (+ (* 3 n) 1)))))
+
 ; Lambda over Let over Lambda example
 (define counter-class (lambda () (let ((x 0)) (lambda () (incf x)))))
 ; Two counters
