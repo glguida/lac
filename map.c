@@ -56,7 +56,7 @@ static int map_args(lreg_t lists, lreg_t *res)
   return r;
 }
 
-LAC_API static int proc_mapcar(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_mapcar(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_MIN_ARGS(args, 2);
   int r;
@@ -102,7 +102,7 @@ LAC_API static int proc_mapcar(lreg_t args, lreg_t *env, lreg_t *res)
 
 }
 
-LAC_API static int proc_reduce(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_reduce(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 2);
   int r;

@@ -48,6 +48,9 @@ enum
     LREG_TYPES = 16
   };
 
+struct env;
+typedef struct env lenv_t;
+
 struct cons
 {
   lreg_t a;
@@ -83,7 +86,7 @@ lreg_t intern_symbol(char *s);
 
 #define LAC_API __attribute__((aligned(16)))
 
-typedef int (*lac_function_t)(lreg_t args, lreg_t *env, lreg_t *res);
+typedef int (*lac_function_t)(lreg_t args, lenv_t *env, lreg_t *res);
 static inline lac_function_t lreg_to_cfunc(lreg_t lr)
 {
   assert(is_llproc(lr) || is_sform(lr));
@@ -108,13 +111,13 @@ static inline lreg_t get_closure_proc(lreg_t lr)
   
   return car(c);
 }
-static inline lreg_t get_closure_env(lreg_t lr)
+static inline lenv_t *get_closure_env(lreg_t lr)
 {
   lreg_t c = LREG(LREG_PTR(lr), LREG_CONS);
   assert((LREG_TYPE(lr) == LREG_LAMBDA)
 	 || (LREG_TYPE(lr) == LREG_MACRO));
 
-  return cdr(c);
+  return (lenv_t *)LREG_PTR(cdr(c));
 }
 static inline lreg_t get_proc_binds(lreg_t lr)
 {
@@ -146,8 +149,8 @@ static void f (void)
 
 void bind_symbol(lreg_t sym, lreg_t val);
 lreg_t register_symbol(const char *s);
-int eval(lreg_t list, lreg_t *env, lreg_t *res);
-int apply(lreg_t proc, lreg_t args, lreg_t *env, lreg_t *res);
+int eval(lreg_t list, lenv_t *env, lreg_t *res);
+int apply(lreg_t proc, lreg_t args, lenv_t *env, lreg_t *res);
 
 
 #define _ERROR_AND_RET(err, ...)		\
@@ -180,7 +183,7 @@ int apply(lreg_t proc, lreg_t args, lreg_t *env, lreg_t *res);
 
 
 #define LAC_DEFINE_TYPE_PFUNC(typename, typeno)				\
-LAC_API static int proc_##typename##p (lreg_t args, lreg_t *env, lreg_t *res) \
+LAC_API static int proc_##typename##p (lreg_t args, lenv_t *env, lreg_t *res) \
 {									\
   _EXPECT_ARGS(args, 1);						\
   if ( LREG_TYPE(car(args)) == typeno )					\
@@ -191,5 +194,11 @@ LAC_API static int proc_##typename##p (lreg_t args, lreg_t *env, lreg_t *res) \
 }
 
 #define LAC_TYPE_PFUNC(typename) proc_##typename##p
+
+void env_init(lenv_t *env);
+int env_lookup(lenv_t *env, lreg_t key, lreg_t *res);
+int env_define(lenv_t *env, lreg_t key, lreg_t value);
+int env_set(lenv_t *env, lreg_t key, lreg_t value);
+lenv_t *env_pushnew(lenv_t *env);
 
 #endif /* LACONIC_H */

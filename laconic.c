@@ -26,7 +26,7 @@
 /*
  * System environment
  */
-lreg_t null_env = NIL;
+lenv_t *null_env = NULL;
 
 
 /*
@@ -173,7 +173,7 @@ lreg_t intern_symbol(char *s)
 /* Bind a value to a *global* variable. */
 void bind_symbol(lreg_t sym, lreg_t val)
 {
-  null_env = cons(cons(sym, val), null_env);
+  (void)env_define(null_env, sym, val);
 }
 
 lreg_t cons(lreg_t a, lreg_t d)
@@ -237,7 +237,7 @@ int assq(lreg_t key, lreg_t alist, lreg_t *res)
  * Eval/Apply
  */
 
-int evlist(lreg_t list, lreg_t *env, lreg_t *res)
+int evlist(lreg_t list, lenv_t *env, lreg_t *res)
 {
   int r;
   for (; list != NIL; list = cdr(list))
@@ -246,7 +246,7 @@ int evlist(lreg_t list, lreg_t *env, lreg_t *res)
   return 0;
 }
 
-int evargs(lreg_t list, lreg_t *env, lreg_t *res)
+int evargs(lreg_t list, lenv_t *env, lreg_t *res)
 {
   int r;
   lreg_t evfirst, evrest;
@@ -278,9 +278,9 @@ int evargs(lreg_t list, lreg_t *env, lreg_t *res)
   return -1;
 }
 
-int evbind(lreg_t binds, lreg_t args, lreg_t *env, lreg_t *res)
+int evbind(lreg_t binds, lreg_t args, lenv_t *env, lenv_t **newenv)
 {
-  lreg_t lenv = *env;
+  lenv_t *lenv = env_pushnew(env);
   for ( ; binds != NIL; binds = cdr(binds), args = cdr(args) )
     {
       if ( !is_cons(binds) )
@@ -295,7 +295,7 @@ int evbind(lreg_t binds, lreg_t args, lreg_t *env, lreg_t *res)
 	      lac_error("Expected binding after &rest");
 	      return -1;
 	    }
-	  lenv = cons(cons(car(cdr(binds)), args), lenv);
+	  env_define(lenv, car(cdr(binds)), args);
 	  args = NIL;
 	  if ( cdr(cdr(binds)) != NIL )
 	    {
@@ -309,7 +309,7 @@ int evbind(lreg_t binds, lreg_t args, lreg_t *env, lreg_t *res)
 	  lac_error("Not enough arguments to function.");
 	  return -1;
 	}
-      lenv = cons(cons(car(binds), car(args)), lenv);
+      env_define(lenv, car(binds), car(args));
     }
 
   if ( args != NIL )
@@ -318,14 +318,14 @@ int evbind(lreg_t binds, lreg_t args, lreg_t *env, lreg_t *res)
       return -1;
     }
 
-  *res = lenv;
+  *newenv = lenv;
   return 0;
 }
 
-int apply(lreg_t proc, lreg_t args, lreg_t *env, lreg_t *res)
+int apply(lreg_t proc, lreg_t args, lenv_t *env, lreg_t *res)
 {
   int r;
-  lreg_t newenv;
+  lenv_t *newenv;
   lreg_t evd = args;
 
   switch ( LREG_TYPE(proc) )
@@ -340,33 +340,33 @@ int apply(lreg_t proc, lreg_t args, lreg_t *env, lreg_t *res)
       break;
     case LREG_LAMBDA:
       {
-	lreg_t lenv = get_closure_env(proc);
+	lenv_t *lenv = get_closure_env(proc);
 	lreg_t lproc = get_closure_proc(proc);
 	r = evargs(args, env, &evd);
 	if ( r != 0 )
 	  return r;
-	r = evbind(get_proc_binds(lproc), evd, &lenv, &newenv);
+	r = evbind(get_proc_binds(lproc), evd, lenv, &newenv);
 	if ( r != 0 )
 	  return r;
-	r = evlist(get_proc_evlist(lproc), &newenv, res);
+	r = evlist(get_proc_evlist(lproc), newenv, res);
       }
       break;
     case LREG_MACRO:
       {
 	lreg_t unevald;
-	lreg_t lenv = get_closure_env(proc);
+	lenv_t *lenv = get_closure_env(proc);
 	lreg_t lproc = get_closure_proc(proc);
 
 	/*
 	 * Macro expand
 	 */
-	r = evbind(get_proc_binds(lproc), evd, &lenv, &newenv);
+	r = evbind(get_proc_binds(lproc), evd, lenv, &newenv);
 	if ( r != 0 )
 	  return r;
-	r = evlist(get_proc_evlist(lproc), &newenv, &unevald);
+	r = evlist(get_proc_evlist(lproc), newenv, &unevald);
 	if ( r != 0 )
 	  return r;
-
+	
 	/*
 	 * Macro expand hook?
 	 */
@@ -381,7 +381,7 @@ int apply(lreg_t proc, lreg_t args, lreg_t *env, lreg_t *res)
   return r;
 }
 
-static int eval_sym(lreg_t sym, lreg_t *env, lreg_t *res)
+static int eval_sym(lreg_t sym, lenv_t *env, lreg_t *res)
 {
   int r;
   lreg_t rassq;
@@ -391,21 +391,17 @@ static int eval_sym(lreg_t sym, lreg_t *env, lreg_t *res)
       return -1;
     }
 
-  r = assq(sym, *env, &rassq);
+  r = env_lookup(env, sym, res);
   if (r != 0)
     {
       if (r == 1)
-	{
 	  fprintf(stderr, "Symbol not defined: "); lac_print(stderr, sym); printf("\n");
-	}
       return -1;
     }
-
-  *res = cdr(rassq);
   return 0;
 }
 
-static int eval_cons(lreg_t cons, lreg_t *env, lreg_t *res)
+static int eval_cons(lreg_t cons, lenv_t *env, lreg_t *res)
 {
   int r;
   lreg_t tmp;
@@ -419,7 +415,7 @@ static int eval_cons(lreg_t cons, lreg_t *env, lreg_t *res)
   return r;
 }
 
-int eval(lreg_t sexp, lreg_t *env, lreg_t *res)
+int eval(lreg_t sexp, lenv_t *env, lreg_t *res)
 {
   int r = 0;
 
@@ -449,7 +445,7 @@ int eval(lreg_t sexp, lreg_t *env, lreg_t *res)
  */
 
 /* Special Form */
-LAC_API static int proc_quote(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_quote(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 1);
 
@@ -457,7 +453,7 @@ LAC_API static int proc_quote(lreg_t args, lreg_t *env, lreg_t *res)
   return 0;
 }
 
-static int _qquote(lreg_t sexp, lreg_t *env, lreg_t *first, lreg_t *last)
+static int _qquote(lreg_t sexp, lenv_t *env, lreg_t *first, lreg_t *last)
 {
   int r;
   switch ( LREG_TYPE(sexp) )
@@ -535,13 +531,13 @@ static int _qquote(lreg_t sexp, lreg_t *env, lreg_t *first, lreg_t *last)
 }
 
 /* Special Form */
-LAC_API static int proc_quasiquote(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_quasiquote(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 1);
   return _qquote(car(args), env, res, NULL);
 }
 
-LAC_API static int proc_car(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_car(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 1);
   lreg_t argument = car(args);
@@ -560,7 +556,7 @@ LAC_API static int proc_car(lreg_t args, lreg_t *env, lreg_t *res)
   return 0;
 }
 
-LAC_API static int proc_cdr(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_cdr(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 1);
   lreg_t argument = car(args);
@@ -581,14 +577,14 @@ LAC_API static int proc_cdr(lreg_t args, lreg_t *env, lreg_t *res)
   return 0;
 }
 
-LAC_API static int proc_cons(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_cons(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 2);
   *res = cons(car(args), car(cdr(args)));
   return 0;
 }
 
-LAC_API static int proc_rplaca(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_rplaca(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 2);
   lreg_t cons = car(args);
@@ -599,7 +595,7 @@ LAC_API static int proc_rplaca(lreg_t args, lreg_t *env, lreg_t *res)
   return 0;
 }
 
-LAC_API static int proc_rplacd(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_rplacd(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 2);
   lreg_t cons = car(args);
@@ -610,7 +606,7 @@ LAC_API static int proc_rplacd(lreg_t args, lreg_t *env, lreg_t *res)
   return 0;
 }
 
-LAC_API static int proc_eq(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_eq(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 2);
   lreg_t ans = sym_false;
@@ -633,7 +629,7 @@ LAC_API static int proc_eq(lreg_t args, lreg_t *env, lreg_t *res)
 }
 
 /* Special Form */
-LAC_API static int proc_cond(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_cond(lreg_t args, lenv_t *env, lreg_t *res)
 {
   /* Undefinite number of arguments */
   int r;
@@ -665,7 +661,7 @@ LAC_API static int proc_cond(lreg_t args, lreg_t *env, lreg_t *res)
   return 0;
 }
 
-LAC_API static int proc_labels(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_labels(lreg_t args, lenv_t *env, lreg_t *res)
 {
   /* At least 3 arguments required. */
   _EXPECT_MIN_ARGS(args, 3);
@@ -676,14 +672,13 @@ LAC_API static int proc_labels(lreg_t args, lreg_t *env, lreg_t *res)
   if ( !is_cons(binds) && binds != NIL )
     _ERROR_AND_RET("Syntax error in labels");
 
-  selfbind = cons(lbl, 0);
-  *res = LREG(LREG_PTR(cons(cdr(args), cons(selfbind, *env))), LREG_LAMBDA);
-  get_cons(selfbind)->d = *res;
+  *res = LREG(LREG_PTR(cons(cdr(args), LREG(env, LREG_NIL))), LREG_LAMBDA);
+  env_define(env, lbl, *res);
   return 0;
 }
 
 /* Special Form */
-LAC_API static int proc_lambda(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_lambda(lreg_t args, lenv_t *env, lreg_t *res)
 {
   /* At least 2 arguments required. */
   _EXPECT_MIN_ARGS(args, 2);
@@ -692,12 +687,12 @@ LAC_API static int proc_lambda(lreg_t args, lreg_t *env, lreg_t *res)
   if ( !is_cons(binds) && binds != NIL )
     _ERROR_AND_RET("Syntax error in lambda\n");
 
-  *res = LREG(LREG_PTR(cons(args, *env)), LREG_LAMBDA);
+  *res = LREG(LREG_PTR(cons(args, LREG(env, LREG_NIL))), LREG_LAMBDA);
   return 0;
 }
 
 /* Special Form */
-LAC_API static int proc_macro(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_macro(lreg_t args, lenv_t *env, lreg_t *res)
 {
   /* At least 2 arguments required. */
   _EXPECT_MIN_ARGS(args, 2);
@@ -706,12 +701,12 @@ LAC_API static int proc_macro(lreg_t args, lreg_t *env, lreg_t *res)
   if ( !is_cons(binds) && binds != NIL )
     _ERROR_AND_RET("Syntax error in macro\n");
 
-  *res = LREG(LREG_PTR(cons(args, *env)), LREG_MACRO);
+  *res = LREG(LREG_PTR(cons(args, LREG(env, LREG_NIL))), LREG_MACRO);
   return 0;
 }
 
 /* Special Form */
-LAC_API static int proc_define(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_define(lreg_t args, lenv_t *env, lreg_t *res)
 {
   int r;
   lreg_t defd;
@@ -724,15 +719,17 @@ LAC_API static int proc_define(lreg_t args, lreg_t *env, lreg_t *res)
   if ( r != 0 )
     return r;
 
-  *env = cons(cons(car(args), defd), *env);  
+  r = env_define(env, car(args), defd);
+  if ( r < 0 )
+    return r;
   *res = defd;
   return 0;
 }
 
-LAC_API static int proc_set(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_set(lreg_t args, lenv_t *env, lreg_t *res)
 {
   int r;
-  lreg_t set, alist = *env;
+  lreg_t set;
   _EXPECT_ARGS(args, 2);
 
   if ( !is_symbol(car(args)) )
@@ -740,26 +737,18 @@ LAC_API static int proc_set(lreg_t args, lreg_t *env, lreg_t *res)
 
   set = car(cdr(args));
 
-  for ( ; alist != NIL; alist = cdr(alist) )
+  r = env_set(env, car(args), set);
+  if ( r < 0 )
+    return r;
+
+  if ( r == 0 )
     {
-      lreg_t a;
-      if ( !is_cons(alist) )
-	_ERROR_AND_RET("Invalid env\n");
-
-      a = car(alist);
-      if ( !is_cons(a) )
-	_ERROR_AND_RET("Invalid env\n");
-
-      if ( car(args) == car(a) )
-	{
-	  get_cons(a)->d = set;
-	  *res = set;
-	  return 0;
-	}
+      *res = set;
+      return 0;
     }
 
   /* Not defined */
-  lac_error("Not defined");
+  fprintf(stderr, "Not defined: "); lac_print(stderr, car(args)); fprintf(stderr, "\n");
   *res = NIL;
   return 0;
 }
@@ -767,7 +756,7 @@ LAC_API static int proc_set(lreg_t args, lreg_t *env, lreg_t *res)
 LAC_DEFINE_TYPE_PFUNC(cons, LREG_CONS);
 LAC_DEFINE_TYPE_PFUNC(symbol, LREG_SYMBOL);
 
-LAC_API static int proc_gensym(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_gensym(lreg_t args, lenv_t *env, lreg_t *res)
 {
   #define GENSYM "#GSYM"
   static int id = 0;
@@ -785,7 +774,7 @@ LAC_API static int proc_gensym(lreg_t args, lreg_t *env, lreg_t *res)
 }
 
 static void repl(FILE *fd);
-LAC_API static int proc_load(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_load(lreg_t args, lenv_t *env, lreg_t *res)
 {
   int r;
   _EXPECT_ARGS(args, 1);
@@ -821,6 +810,9 @@ static void machine_init(void)
 
   /* Init symtab. */
   hcreate(50);
+
+  /* Init Null Env */
+  null_env = env_pushnew(NULL);
 
   /* LISP-style booleans.
      Can be changed into Scheme-scheme. */
@@ -878,7 +870,7 @@ static void repl(FILE *fd)
 	  break;
 	case 2: /* EVAL and PRINT */
 	  gettimeofday(&t1, NULL);
-	  r = eval(res, &null_env, &res);
+	  r = eval(res, null_env, &res);
 	  gettimeofday(&t2, NULL);
 	  if (r == 0)
 	    {

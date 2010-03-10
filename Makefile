@@ -6,8 +6,8 @@ all: lac
 %.tab.c: %.y
 	bison --defines $^
 
-lac: sexpr.tab.c laconic.c atoms.yy.c ints.c strings.c map.c
-	$(CC) -g -lgc $^ -o lac
+lac: sexpr.tab.c laconic.c env.c atoms.yy.c ints.c strings.c map.c
+	$(CC) -O3 -lgc $^ -o lac
 
 clean:
 	-rm sexpr.tab.[ch] atoms.yy.[ch] lac

@@ -55,7 +55,7 @@ static void int_eq(lreg_t arg1, lreg_t arg2, lreg_t *res)
 							\
   new = (long *)GC_malloc(sizeof(unsigned long));
 
-LAC_API static int proc_plus(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_plus(lreg_t args, lenv_t *env, lreg_t *res)
 {
   long n1, n2, *n;
   _BINOP_CHECKS(n1, n2, n);
@@ -70,7 +70,7 @@ LAC_API static int proc_plus(lreg_t args, lreg_t *env, lreg_t *res)
   return 0;
 }
 
-LAC_API static int proc_minus(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_minus(lreg_t args, lenv_t *env, lreg_t *res)
 {
   long n1, n2, *n;
   _BINOP_CHECKS(n1, n2, n);
@@ -85,7 +85,7 @@ LAC_API static int proc_minus(lreg_t args, lreg_t *env, lreg_t *res)
   return 0;
 }
 
-LAC_API static int proc_star(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_star(lreg_t args, lenv_t *env, lreg_t *res)
 {
   long n1, n2, *n;
   _BINOP_CHECKS(n1, n2, n);
@@ -119,7 +119,7 @@ LAC_API static int proc_star(lreg_t args, lreg_t *env, lreg_t *res)
   _ERROR_AND_RET("*: Integer sign overflow\n");
 }
 
-LAC_API static int proc_mod(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_mod(lreg_t args, lenv_t *env, lreg_t *res)
 {
   long n1, n2, *n;
   _BINOP_CHECKS(n1, n2, n);
@@ -132,7 +132,7 @@ LAC_API static int proc_mod(lreg_t args, lreg_t *env, lreg_t *res)
   return 0;
 }
 
-LAC_API static int proc_div(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_div(lreg_t args, lenv_t *env, lreg_t *res)
 {
   long n1, n2, *n;
   _BINOP_CHECKS(n1, n2, n);

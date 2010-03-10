@@ -59,21 +59,21 @@ static int string_compare(lreg_t arg1, lreg_t arg2)
     _ERROR_AND_RET("Function requires two strings!\n");
 
 
-LAC_API int proc_string_lessp(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API int proc_string_lessp(lreg_t args, lenv_t *env, lreg_t *res)
 {
   BINARY_STR_OP_CHECKS(args);
   *res = string_compare(s1, s2) >= 0 ? sym_false : sym_true;
   return 0;
 }
 
-LAC_API static int proc_string_greaterp(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_string_greaterp(lreg_t args, lenv_t *env, lreg_t *res)
 {
   BINARY_STR_OP_CHECKS(args);
   *res = string_compare(s1, s2) <= 0 ? sym_false : sym_true;
   return 0;
 }
 
-LAC_API static int proc_string_equal(lreg_t args, lreg_t *env, lreg_t *res)
+LAC_API static int proc_string_equal(lreg_t args, lenv_t *env, lreg_t *res)
 {
   BINARY_STR_OP_CHECKS(args);
   *res = string_compare(s1, s2) != 0 ? sym_false : sym_true;
