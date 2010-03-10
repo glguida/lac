@@ -25,7 +25,7 @@
 
 static void string_print(FILE *fd, lreg_t lr)
 {
-  fprintf(fd, "\"%s\"", (char *)LREG_PTR(lr));
+  fprintf(fd, "\"%s\" ", (char *)LREG_PTR(lr));
 }
 
 static int string_eval(lreg_t lr, lreg_t *res)

@@ -643,7 +643,7 @@ LAC_API static int proc_cond(lreg_t args, lreg_t *env, lreg_t *res)
     {
       lreg_t test = car(args);
       if ( !is_cons(test) )
-	_ERROR_AND_RET("Syntax error in cons\n");
+	_ERROR_AND_RET("Syntax error in cond\n");
 
       if ( (r = eval(car(test), env, &cond)) < 0 )
 	return r;
