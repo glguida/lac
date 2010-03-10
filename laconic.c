@@ -878,7 +878,7 @@ static void repl(FILE *fd)
 	  break;
 	case 2: /* EVAL and PRINT */
 	  gettimeofday(&t1, NULL);
-	  r = eval(res, null_env, &res);
+	  r = eval(res, &null_env, &res);
 	  gettimeofday(&t2, NULL);
 	  if (r == 0)
 	    {
