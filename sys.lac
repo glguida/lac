@@ -35,6 +35,10 @@
 (defmacro if (test true false)
   `(cond (,test ,true) (t ,false)))
 
+(defun not (x)
+  (cond (x ())
+	(t)))
+
 (defmacro or (x &rest y)
   (let ((g (gensym)))
     `(let ((,g ,x))
@@ -43,9 +47,16 @@
 (defmacro and (x &rest y)
   (let ((g (gensym)))
     `(let ((,g ,x))
-       (if ,g (if (null ',y) ,g (and ,@y)) ,g))))
+       (if (null (or ',y ,g) ,g (if ,g (and ,@y) NIL))))))
 
 (defun listp (x) (or (nullp x) (consp x)))
+(defun atomp (x) (not (consp x)))
+
+(defun assq (s alist)
+  (if (null alist) 
+      NIL 
+      (if (eq (caar alist) s)
+	  (car alist) (assq s (cdr alist)))))
 
 (defun nth (n l)
   (cond 
