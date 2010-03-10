@@ -588,6 +588,28 @@ LAC_API static int proc_cons(lreg_t args, lreg_t *env, lreg_t *res)
   return 0;
 }
 
+LAC_API static int proc_rplaca(lreg_t args, lreg_t *env, lreg_t *res)
+{
+  _EXPECT_ARGS(args, 2);
+  lreg_t cons = car(args);
+  if ( !is_cons(car(args)) )
+    _ERROR_AND_RET("%s: argument is not cons\n", __func__);
+  get_cons(cons)->a = car(cdr(args));
+  *res = cons;
+  return 0;
+}
+
+LAC_API static int proc_rplacd(lreg_t args, lreg_t *env, lreg_t *res)
+{
+  _EXPECT_ARGS(args, 2);
+  lreg_t cons = car(args);
+  if ( !is_cons(car(args)) )
+    _ERROR_AND_RET("%s: argument is not cons\n", __func__);
+  get_cons(cons)->d = car(cdr(args));
+  *res = cons;
+  return 0;
+}
+
 LAC_API static int proc_eq(lreg_t args, lreg_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 2);
@@ -817,14 +839,15 @@ static void machine_init(void)
   bind_symbol(register_symbol("CONS"), llproc_to_lreg(proc_cons));
   bind_symbol(register_symbol("CAR"), llproc_to_lreg(proc_car));
   bind_symbol(register_symbol("CDR"), llproc_to_lreg(proc_cdr));
+  bind_symbol(register_symbol("RPLACA"), llproc_to_lreg(proc_rplaca));
+  bind_symbol(register_symbol("RPLACD"), llproc_to_lreg(proc_rplacd));
   bind_symbol(register_symbol("EQ"), llproc_to_lreg(proc_eq));
   bind_symbol(register_symbol("LOAD"), llproc_to_lreg(proc_load));
   bind_symbol(register_symbol("SET"), llproc_to_lreg(proc_set));
   bind_symbol(register_symbol("GENSYM"), llproc_to_lreg(proc_gensym));
   bind_symbol(register_symbol("CONSP"), llproc_to_lreg(LAC_TYPE_PFUNC(cons)));
   bind_symbol(register_symbol("SYMBOLP"), llproc_to_lreg(LAC_TYPE_PFUNC(symbol)));
-	      
-  
+
   sym_quasiquote = register_symbol("QUASIQUOTE");
   bind_symbol(sym_quasiquote, sform_to_lreg(proc_quasiquote));
   sym_unquote = register_symbol("UNQUOTE");
