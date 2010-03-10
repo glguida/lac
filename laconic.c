@@ -859,6 +859,7 @@ static void repl(FILE *fd)
 {
   lreg_t res;
   int quit = 0;
+  struct timeval t1, t2;
 
   for(;;)
     {
@@ -876,7 +877,9 @@ static void repl(FILE *fd)
 	case 1: /* Syntax Error */
 	  break;
 	case 2: /* EVAL and PRINT */
-	  r = eval(res, &null_env, &res);
+	  gettimeofday(&t1, NULL);
+	  r = eval(res, null_env, &res);
+	  gettimeofday(&t2, NULL);
 	  if (r == 0)
 	    {
 	      if ( isatty(fileno(fd)) )
@@ -884,6 +887,9 @@ static void repl(FILE *fd)
 		  printf("=> "); 
 		  lac_print(stdout, res); 
 		  printf("\n");
+		  printf("Evaluation took %ld seconds and %ld microseconds.\n",
+			 t2.tv_sec - t1.tv_sec, 
+			 t2.tv_usec >= t1.tv_usec ? t2.tv_usec - t1.tv_usec : t2.tv_usec + 1000000L - t1.tv_usec);
 		}
 	    }
 	  break;
