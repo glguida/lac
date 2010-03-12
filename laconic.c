@@ -916,7 +916,7 @@ int main()
   printf("\ngoodbye!\n");
 }
 
-LAC_INITF(lac_init)
+LAC_INITF(lac_init, SYS_FUNCTION)
 {
   GC_init();
   machine_init();

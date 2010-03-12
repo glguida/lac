@@ -128,7 +128,7 @@ LAC_API static int proc_reduce(lreg_t args, lenv_t *env, lreg_t *res)
   return 0;
 }
 
-LAC_INITF(map_init)
+LAC_INITF(map_init, MODULE_FUNCTION)
 {
   bind_symbol(register_symbol("MAPCAR"), llproc_to_lreg(proc_mapcar));
   bind_symbol(register_symbol("REDUCE"), llproc_to_lreg(proc_reduce));
