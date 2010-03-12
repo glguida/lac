@@ -26,7 +26,7 @@
 /*
  * System environment
  */
-lenv_t *null_env = NULL;
+lenv_t null_env;
 
 
 /*
@@ -173,7 +173,7 @@ lreg_t intern_symbol(char *s)
 /* Bind a value to a *global* variable. */
 void bind_symbol(lreg_t sym, lreg_t val)
 {
-  (void)env_define(null_env, sym, val);
+  (void)env_define(&null_env, sym, val);
 }
 
 lreg_t cons(lreg_t a, lreg_t d)
@@ -278,9 +278,10 @@ int evargs(lreg_t list, lenv_t *env, lreg_t *res)
   return -1;
 }
 
-int evbind(lreg_t binds, lreg_t args, lenv_t *env, lenv_t **newenv)
+int evbind(lreg_t binds, lreg_t args, lenv_t *env, lenv_t *lenv)
 {
-  lenv_t *lenv = env_pushnew(env);
+  env_pushnew(env, lenv);
+
   for ( ; binds != NIL; binds = cdr(binds), args = cdr(args) )
     {
       if ( !is_cons(binds) )
@@ -317,8 +318,6 @@ int evbind(lreg_t binds, lreg_t args, lenv_t *env, lenv_t **newenv)
       lac_error("Too many arguments to function.");
       return -1;
     }
-
-  *newenv = lenv;
   return 0;
 }
 
@@ -340,30 +339,32 @@ int apply(lreg_t proc, lreg_t args, lenv_t *env, lreg_t *res)
       break;
     case LREG_LAMBDA:
       {
-	lenv_t *lenv = get_closure_env(proc);
+	lenv_t lenv;
+	lenv_t *procenv = get_closure_env(proc);
 	lreg_t lproc = get_closure_proc(proc);
 	r = evargs(args, env, &evd);
 	if ( r != 0 )
 	  return r;
-	r = evbind(get_proc_binds(lproc), evd, lenv, &newenv);
+	r = evbind(get_proc_binds(lproc), evd, procenv, &lenv);
 	if ( r != 0 )
 	  return r;
-	r = evlist(get_proc_evlist(lproc), newenv, res);
+	r = evlist(get_proc_evlist(lproc), &lenv, res);
       }
       break;
     case LREG_MACRO:
       {
+	lenv_t lenv;
 	lreg_t unevald;
-	lenv_t *lenv = get_closure_env(proc);
+	lenv_t *procenv = get_closure_env(proc);
 	lreg_t lproc = get_closure_proc(proc);
 
 	/*
 	 * Macro expand
 	 */
-	r = evbind(get_proc_binds(lproc), evd, lenv, &newenv);
+	r = evbind(get_proc_binds(lproc), evd, procenv, &lenv);
 	if ( r != 0 )
 	  return r;
-	r = evlist(get_proc_evlist(lproc), newenv, &unevald);
+	r = evlist(get_proc_evlist(lproc), &lenv, &unevald);
 	if ( r != 0 )
 	  return r;
 	
@@ -665,15 +666,16 @@ LAC_API static int proc_labels(lreg_t args, lenv_t *env, lreg_t *res)
 {
   /* At least 3 arguments required. */
   _EXPECT_MIN_ARGS(args, 3);
+  lenv_t *penv = GC_malloc(sizeof(lenv_t));
   lreg_t lbl = car(args);
   lreg_t binds = car(cdr(args));
-  lreg_t selfbind;
 
   if ( !is_cons(binds) && binds != NIL )
     _ERROR_AND_RET("Syntax error in labels");
 
-  *res = LREG(LREG_PTR(cons(cdr(args), LREG(env, LREG_NIL))), LREG_LAMBDA);
-  env_define(env, lbl, *res);
+  env_pushnew(env, penv);
+  *res = LREG(LREG_PTR(cons(cdr(args), LREG(penv, LREG_NIL))), LREG_LAMBDA);
+  env_define(penv, lbl, *res);
   return 0;
 }
 
@@ -682,12 +684,14 @@ LAC_API static int proc_lambda(lreg_t args, lenv_t *env, lreg_t *res)
 {
   /* At least 2 arguments required. */
   _EXPECT_MIN_ARGS(args, 2);
+  lenv_t *penv = GC_malloc(sizeof(lenv_t));
   lreg_t binds = car(args);
 
   if ( !is_cons(binds) && binds != NIL )
     _ERROR_AND_RET("Syntax error in lambda\n");
 
-  *res = LREG(LREG_PTR(cons(args, LREG(env, LREG_NIL))), LREG_LAMBDA);
+  env_pushnew(env, penv);
+  *res = LREG(LREG_PTR(cons(args, LREG(penv, LREG_NIL))), LREG_LAMBDA);
   return 0;
 }
 
@@ -696,12 +700,14 @@ LAC_API static int proc_macro(lreg_t args, lenv_t *env, lreg_t *res)
 {
   /* At least 2 arguments required. */
   _EXPECT_MIN_ARGS(args, 2);
+  lenv_t *penv = GC_malloc(sizeof(lenv_t));
   lreg_t binds = car(args);
 
   if ( !is_cons(binds) && binds != NIL )
     _ERROR_AND_RET("Syntax error in macro\n");
 
-  *res = LREG(LREG_PTR(cons(args, LREG(env, LREG_NIL))), LREG_MACRO);
+  env_pushnew(env, penv);
+  *res = LREG(LREG_PTR(cons(args, LREG(penv, LREG_NIL))), LREG_MACRO);
   return 0;
 }
 
@@ -812,7 +818,7 @@ static void machine_init(void)
   hcreate(50);
 
   /* Init Null Env */
-  null_env = env_pushnew(NULL);
+  env_pushnew(NULL, &null_env);
 
   /* LISP-style booleans.
      Can be changed into Scheme-scheme. */
@@ -870,7 +876,7 @@ static void repl(FILE *fd)
 	  break;
 	case 2: /* EVAL and PRINT */
 	  gettimeofday(&t1, NULL);
-	  r = eval(res, null_env, &res);
+	  r = eval(res, &null_env, &res);
 	  gettimeofday(&t2, NULL);
 	  if (r == 0)
 	    {

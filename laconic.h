@@ -30,6 +30,25 @@ typedef uintptr_t lreg_t;
 #define LREG_TYPE(lr) (lr & LREG_TYPE_MASK)
 #define LREG(ptr, ty) (lreg_t)(LREG_PTR(ptr) | LREG_TYPE(ty))
 
+#define HT_SIZE 31
+
+struct ht_entry
+{
+  lreg_t key;
+  lreg_t value;
+  struct ht_entry *next;
+};
+
+typedef struct ht
+{
+  struct ht_entry *table[HT_SIZE];
+} ht_t;
+
+typedef struct env
+{
+  ht_t htable;
+} lenv_t;
+
 #define NIL LREG(0,LREG_NIL)
 
 enum 
@@ -47,9 +66,6 @@ enum
     LREG_FLOAT,
     LREG_TYPES = 16
   };
-
-struct env;
-typedef struct env lenv_t;
 
 struct cons
 {
@@ -195,10 +211,15 @@ LAC_API static int proc_##typename##p (lreg_t args, lenv_t *env, lreg_t *res) \
 
 #define LAC_TYPE_PFUNC(typename) proc_##typename##p
 
+
+/*
+ * Environment management.
+ */
 void env_init(lenv_t *env);
 int env_lookup(lenv_t *env, lreg_t key, lreg_t *res);
 int env_define(lenv_t *env, lreg_t key, lreg_t value);
 int env_set(lenv_t *env, lreg_t key, lreg_t value);
-lenv_t *env_pushnew(lenv_t *env);
+void env_pushnew(lenv_t *env, lenv_t *new);
+
 
 #endif /* LACONIC_H */

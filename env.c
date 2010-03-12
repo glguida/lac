@@ -1,29 +1,14 @@
 #include "laconic.h"
 #include <gc/gc.h>
+#include <strings.h>
 
 /*
  * Utterly simple hash table implementation
  */
 
-#define HT_SIZE 17
-
-struct ht_entry
-{
-  lreg_t key;
-  lreg_t value;
-  struct ht_entry *next;
-};
-
-typedef struct ht
-{
-  struct ht_entry *table[HT_SIZE];
-} ht_t;
-
 static unsigned ht_hashf(lreg_t key)
 {
-  uintptr_t n;
-  n = (key >> 6) % HT_SIZE;
-  return n;
+  return (key >> 5) % HT_SIZE;
 }
 
 static int _ht_findptr(struct ht_entry *hte, lreg_t key, struct ht_entry **e)
@@ -62,23 +47,12 @@ static int ht_find(ht_t *ht, lreg_t key, lreg_t *res)
 static int _ht_insert(struct ht_entry **htep, lreg_t key, lreg_t value)
 {
   struct ht_entry *hte = *htep;
-  if ( hte == NULL )
-    {
-      struct ht_entry *e = GC_malloc(sizeof(struct ht_entry));
-      e->key = key;
-      e->value = value;
-      e->next = NULL;
-      *htep = e;
-      return 0;
-    }
- 
-  if ( hte->key == key )
-    {
-      hte->value = value;
-      return 0;
-    }
-
-  return _ht_insert(&hte->next, key, value);
+  struct ht_entry *e = GC_malloc(sizeof(struct ht_entry));
+  e->key = key;
+  e->value = value;
+  e->next = hte;
+  *htep = e;
+  return 0;
 }
 
 static int ht_insert(ht_t *ht, lreg_t key, lreg_t value)
@@ -93,51 +67,34 @@ static int ht_insert(ht_t *ht, lreg_t key, lreg_t value)
  * Environment stacks. Mostly Activation Records.
  */
 
-struct env
-{
-  ht_t *htable;
-  struct env *prev;
-};
-
 /* Ret values: < 0 => error, 0 => found, 1 not found */
 int env_lookup(lenv_t *env, lreg_t key, lreg_t *res)
 {
-  int r = ht_find(env->htable, key, res);
-  if ( r < 1 )
-    return r;
-
-  /* Not found, try searching other envs */
-  if ( env->prev == NULL )
-    return 1;
-
-  return env_lookup(env->prev, key, res);
+  return ht_find(&env->htable, key, res);
 }
 
 int env_define(lenv_t *env, lreg_t key, lreg_t value)
 {
-  /* Add to the toplevel table. */
-  return ht_insert(env->htable, key, value);
+  return ht_insert(&env->htable, key, value);
 }
 
 /* Ret values: < 0 => error, 0 => found, 1 not found */
 int env_set(lenv_t *env, lreg_t key, lreg_t value)
 {
-  int n;
+  int r;
   struct ht_entry *hte;
-  n = ht_findptr(env->htable, key, &hte);
-  if ( n == 0 )
+  r = ht_findptr(&env->htable, key, &hte);
+  if ( r == 0 )
       hte->value = value;
-  if ( (n == 1) && env->prev != NULL )
-    return env_set(env->prev, key, value);
-  return n;
+  return r;
 }
 
-lenv_t *env_pushnew(lenv_t *env)
+void env_pushnew(lenv_t *env, lenv_t *new)
 {
-  lenv_t *new = GC_malloc(sizeof(lenv_t));
-  new->htable = GC_malloc(sizeof(ht_t));
-  new->prev = env;
-  return new;
+  if ( env == NULL )
+    memset(new, 0, sizeof(lenv_t));
+  else
+    new->htable = env->htable;
 }
 
 #if 0
