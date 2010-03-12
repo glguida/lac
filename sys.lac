@@ -49,6 +49,7 @@
     `(let ((,g ,x))
        (if (null (or ',y ,g) ,g (if ,g (and ,@y) NIL))))))
 
+(defun list (x &rest y) (cons x y))
 (defun listp (x) (or (nullp x) (consp x)))
 (defun atomp (x) (not (consp x)))
 
