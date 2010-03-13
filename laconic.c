@@ -167,7 +167,7 @@ lreg_t intern_symbol(char *s)
   assert(((uintptr_t)s & LREG_TYPE_MASK) == 0);
 
   r = hsearch(e, ENTER);
-  return LREG(LREG_PTR(r->key),LREG_SYMBOL);
+  return LREG(LREG_PTR((lreg_t)r->key),LREG_SYMBOL);
 }
 
 /* Bind a value to a *global* variable. */

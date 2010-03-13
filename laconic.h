@@ -23,12 +23,68 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <assert.h>
+#include <gc/gc.h>
 
 typedef uintptr_t lreg_t;
-#define LREG_TYPE_MASK 0xf
-#define LREG_PTR(lr) ((uintptr_t)lr & ~LREG_TYPE_MASK)
-#define LREG_TYPE(lr) (lr & LREG_TYPE_MASK)
-#define LREG(ptr, ty) (lreg_t)(LREG_PTR(ptr) | LREG_TYPE(ty))
+typedef struct {
+  unsigned tag;
+  void *ptr;
+} treg_t;
+
+#define LREG_TYPE_MASK 0x7
+enum 
+  {
+    LREG_CONS = 0,  /* Cons cells */
+    LREG_SYMBOL,    /* Symbols */
+    LREG_SFORM,     /* Special forms. */
+    LREG_LLPROC,    /* C ll procedures */
+    LREG_LAMBDA,    /* Lambda procedures. */
+    LREG_MACRO,     /* Macro procedures. */
+    LREG_NIL,       /* NIL */
+    LREG_EXTT,
+    LREG_STRING,
+    LREG_INTEGER,
+    /* Not implemented yet */
+    LREG_FLOAT,
+    LREG_TYPES = 16
+  };
+
+static inline unsigned lreg_type(lreg_t lr)
+{
+  treg_t *tr;
+  if ( (lr & LREG_TYPE_MASK) != LREG_EXTT )
+    return lr & LREG_TYPE_MASK;
+
+  tr = (treg_t *)((uintptr_t)lr & ~LREG_TYPE_MASK);
+  return tr->tag;
+}
+
+static inline void *lreg_ptr(lreg_t lr)
+{
+  treg_t *tr;
+  if ( (lr & LREG_TYPE_MASK) != LREG_EXTT )
+    return (void *)((uintptr_t)lr & ~LREG_TYPE_MASK);
+
+  tr = (treg_t *)((uintptr_t)lr & ~LREG_TYPE_MASK);
+  return tr->ptr;
+}
+
+static inline lreg_t lreg(void *ptr, unsigned type)
+{
+  treg_t *tr;
+  if ( type < LREG_EXTT )
+    return (lreg_t)((uintptr_t)ptr & ~LREG_TYPE_MASK) | type;
+
+  tr = GC_malloc(sizeof(treg_t));
+  tr->tag = type;
+  tr->ptr = ptr;
+  return (lreg_t)(((uintptr_t)tr & ~LREG_TYPE_MASK) | LREG_EXTT);
+}
+
+#define LREG_PTR(lr) lreg_ptr(lr)
+#define LREG_TYPE(lr) lreg_type(lr)
+#define LREG(ptr, ty) lreg(ptr, ty)
+#define NIL LREG(0,LREG_NIL)
 
 #define HT_SIZE 31
 
@@ -48,24 +104,6 @@ typedef struct env
 {
   ht_t htable;
 } lenv_t;
-
-#define NIL LREG(0,LREG_NIL)
-
-enum 
-  {
-    LREG_CONS = 0,  /* Cons cells */
-    LREG_SYMBOL,    /* Symbols */
-    LREG_SFORM,     /* Special forms. */
-    LREG_LLPROC,    /* C ll procedures */
-    LREG_LAMBDA,    /* Lambda procedures. */
-    LREG_MACRO,     /* Macro procedures. */
-    LREG_NIL,       /* NIL */
-    LREG_STRING,
-    LREG_INTEGER,
-    /* Not implemented yet */
-    LREG_FLOAT,
-    LREG_TYPES = 16
-  };
 
 struct cons
 {
