@@ -25,7 +25,7 @@
 
 static void int_print(FILE *fd, lreg_t lr)
 {
-  fprintf(fd, "%ld ", *(long*)LREG_PTR(lr));
+  fprintf(fd, "%ld ", (long)LREG_PTR(lr));
 }
 
 static int int_eval(lreg_t lr, lreg_t *res)
@@ -36,12 +36,12 @@ static int int_eval(lreg_t lr, lreg_t *res)
 
 static void int_eq(lreg_t arg1, lreg_t arg2, lreg_t *res)
 {
-  long n1 = *(unsigned long *)LREG_PTR(arg1);
-  long n2 = *(unsigned long *)LREG_PTR(arg2);
+  long n1 = (long)LREG_PTR(arg1);
+  long n2 = (long)LREG_PTR(arg2);
   *res = (n1 == n2) ? sym_true : sym_false;
 }
 
-#define _BINOP_CHECKS(a, b, new)			\
+#define _BINOP_CHECKS(a, b)			\
   _EXPECT_ARGS(args, 2);				\
   lreg_t arg1 = car(args);				\
   lreg_t arg2 = car(cdr(args));				\
@@ -50,45 +50,44 @@ static void int_eq(lreg_t arg1, lreg_t arg2, lreg_t *res)
        || LREG_TYPE(arg1) != LREG_INTEGER )		\
       _ERROR_AND_RET("+ requires two integers");	\
 							\
-  a = *(unsigned long *)LREG_PTR(arg1);			\
-  b = *(unsigned long *)LREG_PTR(arg2);			\
-							\
-  new = (long *)GC_malloc(sizeof(unsigned long));
+  a = (long)LREG_PTR(arg1);				\
+  b = (long)LREG_PTR(arg2);
+
 
 LAC_API static int proc_plus(lreg_t args, lenv_t *env, lreg_t *res)
 {
-  long n1, n2, *n;
-  _BINOP_CHECKS(n1, n2, n);
+  long n1, n2, n;
+  _BINOP_CHECKS(n1, n2);
 
   if ( ((n1>0) && (n2>0) && (n1 > (LONG_MAX-n2))) 
        || ((n1<0) && (n2<0) && (n1 < (LONG_MIN-n2))) )
     _ERROR_AND_RET("+: Integer overflow\n");
 
-  *n = n1 + n2;
+  n = n1 + n2;
 
-  *res = LREG(n, LREG_INTEGER);
+  *res = LREG((void *)n, LREG_INTEGER);
   return 0;
 }
 
 LAC_API static int proc_minus(lreg_t args, lenv_t *env, lreg_t *res)
 {
-  long n1, n2, *n;
-  _BINOP_CHECKS(n1, n2, n);
+  long n1, n2, n;
+  _BINOP_CHECKS(n1, n2);
 
   if ( ((n1>0) && (n2 < 0) && (n1 > (LONG_MAX+n2)))
        || ((n1<0) && (n2>0) && (n1 < (LONG_MIN + n2))) )
     _ERROR_AND_RET("-: Integer signed overflow\n");
   
-  *n = n1 - n2;
+  n = n1 - n2;
   
-  *res = LREG(n, LREG_INTEGER);
+  *res = LREG((void *)n, LREG_INTEGER);
   return 0;
 }
 
 LAC_API static int proc_star(lreg_t args, lenv_t *env, lreg_t *res)
 {
-  long n1, n2, *n;
-  _BINOP_CHECKS(n1, n2, n);
+  long n1, n2, n;
+  _BINOP_CHECKS(n1, n2);
 
   if ( n1 == 0 || n2 == 0 )
     goto mul_res;
@@ -111,8 +110,8 @@ LAC_API static int proc_star(lreg_t args, lenv_t *env, lreg_t *res)
     }
 
  mul_res:
-  *n = n1 * n2;
-  *res = LREG(n, LREG_INTEGER);
+  n = n1 * n2;
+  *res = LREG((void *)n, LREG_INTEGER);
   return 0;
 
  mul_of:
@@ -121,27 +120,27 @@ LAC_API static int proc_star(lreg_t args, lenv_t *env, lreg_t *res)
 
 LAC_API static int proc_mod(lreg_t args, lenv_t *env, lreg_t *res)
 {
-  long n1, n2, *n;
-  _BINOP_CHECKS(n1, n2, n);
+  long n1, n2, n;
+  _BINOP_CHECKS(n1, n2);
 
   if ( (n2 == 0 ) || ( (n1 == LONG_MIN) && (n2 == -1) ) )
       _ERROR_AND_RET("\%% would overflow or divide by zero\n");
 
-  *n = n1 % n2;
-  *res = LREG(n, LREG_INTEGER);
+  n = n1 % n2;
+  *res = LREG((void *)n, LREG_INTEGER);
   return 0;
 }
 
 LAC_API static int proc_div(lreg_t args, lenv_t *env, lreg_t *res)
 {
-  long n1, n2, *n;
-  _BINOP_CHECKS(n1, n2, n);
+  long n1, n2, n;
+  _BINOP_CHECKS(n1, n2);
 
   if ( (n2 == 0 ) || ( (n1 == LONG_MIN) && (n2 == -1) ) )
       _ERROR_AND_RET("\%% would overflow or divide by zero\n");
 
-  *n = n1 / n2;
-  *res = LREG(n, LREG_INTEGER);
+  n = n1 / n2;
+  *res = LREG((void *)n, LREG_INTEGER);
   return 0;
 }
 
