@@ -815,7 +815,7 @@ static void machine_init(void)
   char *s;
 
   /* Init symtab. */
-  hcreate(50);
+  hcreate(500);
 
   /* Init Null Env */
   env_pushnew(NULL, &null_env);
