@@ -148,7 +148,7 @@ LAC_DEFINE_TYPE_PFUNC(integer, LREG_INTEGER);
 
 static ext_type_t int_ty = { .print = int_print, .eval = int_eval, .eq = int_eq };
 
-LAC_INITF(int_init, MODULE_FUNCTION)
+void int_init(void)
 {
   ext_type_register(LREG_INTEGER, &int_ty);
   bind_symbol(register_symbol("INTEGERP"), llproc_to_lreg(LAC_TYPE_PFUNC(integer)));
