@@ -84,7 +84,7 @@ LAC_DEFINE_TYPE_PFUNC(string, LREG_STRING)
 
 static ext_type_t string_ty = { .print = string_print, .eval = string_eval, .eq = string_eq };
 
-LAC_INITF(string_init, MODULE_FUNCTION)
+void string_init(void)
 {
   ext_type_register(LREG_STRING, &string_ty);
   bind_symbol(register_symbol("STRINGP"), llproc_to_lreg(LAC_TYPE_PFUNC(string)));
