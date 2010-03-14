@@ -197,6 +197,13 @@ typedef struct {
 
 int ext_type_register(int typeno, ext_type_t *extty);
 
+#define SYS_FUNCTION 101
+#define MODULE_FUNCTION 600
+
+#define LAC_INITF(f,p)					\
+  static void f (void) __attribute__((constructor(p)));	\
+  static void f (void)
+
 void bind_symbol(lreg_t sym, lreg_t val);
 lreg_t register_symbol(const char *s);
 int eval(lreg_t list, lenv_t *env, lreg_t *res);

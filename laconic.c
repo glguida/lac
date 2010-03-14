@@ -897,16 +897,6 @@ static void repl(FILE *fd)
     }
 }
 
-void map_init(void);
-void int_init(void);
-void string_init(void);
-static void modules_init()
-{
-  int_init();
-  string_init();
-  map_init();
-}
-
 static void library_init(void)
 {
   FILE *fd = fopen("sys.lac", "r");
@@ -921,10 +911,13 @@ static void library_init(void)
 
 int main()
 {
-  GC_init();
-  machine_init();
-  modules_init();
   library_init();
   repl(stdin);
   printf("\ngoodbye!\n");
+}
+
+LAC_INITF(lac_init, SYS_FUNCTION)
+{
+  GC_init();
+  machine_init();
 }

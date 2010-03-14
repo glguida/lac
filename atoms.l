@@ -41,13 +41,15 @@ SIGN [+|-]
 ;(.)*
 {WHITESPACE}
 
-{SIGN}?{DIGIT}+ { long n = strtol(yytext, (char **)NULL, 10);
-                  *lvalp = LREG((void *)n, LREG_INTEGER);
+{SIGN}?{DIGIT}+ { long *n = GC_MALLOC(sizeof(unsigned long));
+                  *n = strtol(yytext, (char **)NULL, 10);
+                  *lvalp = LREG(n, LREG_INTEGER);
                   return ATOM;
 }
 
-#x{HEXDIGIT}+ { long n = strtol(yytext+2, (char **)NULL, 16);
-                *lvalp = LREG((void *)n, LREG_INTEGER);
+#x{HEXDIGIT}+ { long *n = GC_MALLOC(sizeof(unsigned long));
+                *n = strtol(yytext+2, (char **)NULL, 16);
+                *lvalp = LREG(n, LREG_INTEGER);
                 return ATOM;
 }
 
