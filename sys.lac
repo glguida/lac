@@ -51,7 +51,43 @@
     `(let ((,g ,x))
        (if (null ',y) ,g (if ,g (and ,@y) NIL)))))
 
+(defun last (x) (cond ((null (cdr x)) x) (t (last (cdr x)))))
+
+(defun length (lst)
+  (if (null lst)
+      0
+    (+ 1 (length (cdr lst)))))
+
+(defun member (el lst)
+  (if (null lst) 
+      NIL 
+      (or (eq (car lst) el) (member el (cdr lst)))))
+
+(defun append (&rest llst)
+  (let ((lst (car llst))
+	(lsts (cdr llst)))
+    (cond
+      ((null lsts) lst)
+      ((eq 1 (length lst)) (cons (car lst) (apply append lsts)))
+      (t (cons (car lst)
+	       (append (cdr lst) (apply append lsts)))))))
+
+(defun remove-if (test lst) 
+  (if (null lst) 
+      NIL 
+      (if (test (car lst)) 
+	  (remove-if test (cdr lst)) 
+	  (cons (car lst) (remove-if test (cdr lst)))))) 
+
+(defun remove-if-not (test lst)
+  (remove-if (lambda (x) (not (test x))) lst))
+ 
+
 (defun list (x &rest y) (cons x y))
+(defmacro push (x place) 
+  (list 'set (list 'quote place) (list 'cons x place)))
+
+
 (defun listp (x) (or (nullp x) (consp x)))
 (defun atomp (x) (not (consp x)))
 
