@@ -278,10 +278,8 @@ int evargs(lreg_t list, lenv_t *env, lreg_t *res)
   return -1;
 }
 
-int evbind(lreg_t binds, lreg_t args, lenv_t *env, lenv_t *lenv)
+int evbind(lreg_t binds, lreg_t args, lenv_t *lenv)
 {
-  env_pushnew(env, lenv);
-
   for ( ; binds != NIL; binds = cdr(binds), args = cdr(args) )
     {
       if ( !is_cons(binds) )
@@ -321,19 +319,12 @@ int evbind(lreg_t binds, lreg_t args, lenv_t *env, lenv_t *lenv)
   return 0;
 }
 
-int apply(lreg_t proc, lreg_t args, lenv_t *env, lreg_t *res)
+static int _apply(lreg_t proc, lreg_t evd, lenv_t *env, lreg_t *res)
 {
   int r;
-  lenv_t *newenv;
-  lreg_t evd = args;
-
   switch ( LREG_TYPE(proc) )
     {
     case LREG_LLPROC:
-      r = evargs(args, env, &evd);
-      if( r != 0 )
-	return r;
-      /* Passthrough */
     case LREG_SFORM:
       r = lreg_to_llproc(proc)(evd, env, res);
       break;
@@ -342,10 +333,8 @@ int apply(lreg_t proc, lreg_t args, lenv_t *env, lreg_t *res)
 	lenv_t lenv;
 	lenv_t *procenv = get_closure_env(proc);
 	lreg_t lproc = get_closure_proc(proc);
-	r = evargs(args, env, &evd);
-	if ( r != 0 )
-	  return r;
-	r = evbind(get_proc_binds(lproc), evd, procenv, &lenv);
+	env_pushnew(procenv, &lenv);
+	r = evbind(get_proc_binds(lproc), evd, &lenv);
 	if ( r != 0 )
 	  return r;
 	r = evlist(get_proc_evlist(lproc), &lenv, res);
@@ -361,7 +350,8 @@ int apply(lreg_t proc, lreg_t args, lenv_t *env, lreg_t *res)
 	/*
 	 * Macro expand
 	 */
-	r = evbind(get_proc_binds(lproc), evd, procenv, &lenv);
+	env_pushnew(procenv, &lenv);
+	r = evbind(get_proc_binds(lproc), evd, &lenv);
 	if ( r != 0 )
 	  return r;
 	r = evlist(get_proc_evlist(lproc), &lenv, &unevald);
@@ -377,9 +367,34 @@ int apply(lreg_t proc, lreg_t args, lenv_t *env, lreg_t *res)
     default:
       fprintf(stderr, "Not a procedure: "); lac_print(stderr, proc); fprintf(stderr, "\n");
       r = -1;
+      break;
     }
 
   return r;
+}
+
+int apply(lreg_t proc, lreg_t args, lenv_t *env, lreg_t *res)
+{
+  int r;
+  lenv_t *newenv;
+  lreg_t evd = args;
+
+  switch ( LREG_TYPE(proc) )
+    {
+    case LREG_LLPROC:
+    case LREG_LAMBDA:
+      r = evargs(args, env, &evd);
+      if( r != 0 )
+	return r;
+      break;
+    case LREG_SFORM:
+    case LREG_MACRO:
+      break;
+    default:
+      fprintf(stderr, "Not a procedure: "); lac_print(stderr, proc); fprintf(stderr, "\n");
+      return -1;
+    }
+  return _apply(proc, evd, env, res);
 }
 
 static int eval_sym(lreg_t sym, lenv_t *env, lreg_t *res)
@@ -629,6 +644,17 @@ LAC_API static int proc_eq(lreg_t args, lenv_t *env, lreg_t *res)
   return 0;
 }
 
+LAC_API static int proc_apply(lreg_t args, lenv_t *env, lreg_t *res)
+{
+  _EXPECT_ARGS(args, 2);
+  int r;
+  r = _apply(car(args), car(cdr(args)), env, res);
+  if ( r != 0 )
+    return r;
+
+  return 0;
+}
+
 /* Special Form */
 LAC_API static int proc_cond(lreg_t args, lenv_t *env, lreg_t *res)
 {
@@ -840,6 +866,7 @@ static void machine_init(void)
   bind_symbol(register_symbol("RPLACA"), llproc_to_lreg(proc_rplaca));
   bind_symbol(register_symbol("RPLACD"), llproc_to_lreg(proc_rplacd));
   bind_symbol(register_symbol("EQ"), llproc_to_lreg(proc_eq));
+  bind_symbol(register_symbol("APPLY"), llproc_to_lreg(proc_apply));
   bind_symbol(register_symbol("LOAD"), llproc_to_lreg(proc_load));
   bind_symbol(register_symbol("SET"), llproc_to_lreg(proc_set));
   bind_symbol(register_symbol("GENSYM"), llproc_to_lreg(proc_gensym));
