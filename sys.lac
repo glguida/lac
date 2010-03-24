@@ -1,5 +1,7 @@
-(define defun (macro (name binds body) `(define ,name (labels ,name ,binds ,body))))
-(define defmacro (macro (name binds body) `(define ,name (macro ,binds ,body))))
+(define defun (macro (name binds &rest body) `(define ,name (labels ,name ,binds ,@body))))
+(define defmacro (macro (name binds &rest body) `(define ,name (macro ,binds ,@body))))
+; a-la lisperati.com
+(defmacro defspel (&rest rest) `(defmacro ,@rest))
 
 (define NIL ())
 (defun null (x) (eq x NIL))
@@ -47,7 +49,7 @@
 (defmacro and (x &rest y)
   (let ((g (gensym)))
     `(let ((,g ,x))
-       (if (null (or ',y ,g) ,g (if ,g (and ,@y) NIL))))))
+       (if (null ',y) ,g (if ,g (and ,@y) NIL)))))
 
 (defun list (x &rest y) (cons x y))
 (defun listp (x) (or (nullp x) (consp x)))
@@ -66,7 +68,7 @@
 
 
 (defmacro setq (sym val) 
-  `(set (quote ,sym) ,val))
+  `(set ',sym ,val))
 
 (defun 1+ (x) (+ 1 x))
 (defun 1- (x) (- x 1))
