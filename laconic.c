@@ -188,16 +188,18 @@ lreg_t cons(lreg_t a, lreg_t d)
 lreg_t car(lreg_t lr)
 {
   cons_t *cons = (cons_t *)LREG_PTR(lr);
-  assert(is_cons(lr));
-  
+  assert(is_cons(lr) | (lr == NIL) );
+  if ( lr == NIL )
+    return NIL;
   return cons->a;
 }
 
 lreg_t cdr(lreg_t lr)
 {
   cons_t *cons = (cons_t *)LREG_PTR(lr);
-  assert(is_cons(lr));
-  
+  assert(is_cons(lr) | (lr == NIL));
+  if ( lr == NIL )
+    return NIL;
   return cons->d;
 }
 
