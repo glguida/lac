@@ -469,56 +469,80 @@ LAC_API static int proc_quote(lreg_t args, lenv_t *env, lreg_t *res)
   return 0;
 }
 
-static int _qquote(lreg_t sexp, lenv_t *env, lreg_t *first, lreg_t *last)
+static int _qquote(lreg_t sexp, lenv_t *env, lreg_t *first, lreg_t *last, int nested)
 {
   int r;
   switch ( LREG_TYPE(sexp) )
     {
     case LREG_CONS:
-      if ( car(sexp) == sym_unquote )
+      if ( car(sexp) == sym_quasiquote )
 	{
-	  r = eval(car(cdr(sexp)), env, first);
-	  if ( r < 0 )
-	    return r;
-	  /* * first written by eval */
+	  lreg_t qqd;
+	  _qquote(cdr(sexp), env, &qqd, NULL, nested+1);
+	  *first = cons(sym_quasiquote, qqd);
+	}
+      else if ( (car(sexp) == sym_unquote) )
+	{
+	  if ( nested == 0 )
+	    {
+	      r = eval(car(cdr(sexp)), env, first);
+	      if ( r < 0 )
+		return r;
+	      /* * first written by eval */
+	    }
+	  else
+	    {
+	      lreg_t qqd;
+	      _qquote(cdr(sexp), env, &qqd, NULL, nested - 1);
+	      *first = cons(sym_unquote, qqd);
+	    }
 	}
       else if ( car(sexp) == sym_splice )
 	{
-	  lreg_t tosplice;
-	  if ( last == NULL )
+	  if ( nested == 0 )
 	    {
-	      fprintf(stderr, "SPLICE expected on car only.\n");
-	      return -1;
-	    }
+	      lreg_t tosplice;
+	      if ( last == NULL )
+		{
+		  fprintf(stderr, "SPLICE expected on car only.\n");
+		  return -1;
+		}
+	      
+	      r = eval(car(cdr(sexp)), env, &tosplice);
+	      if ( r < 0 )
+		return r;
+	      
+	      switch( LREG_TYPE(tosplice) )
+		{
+		  lreg_t tail = NIL;
+		case LREG_CONS:
+		  *first = tail = tosplice;
+		  for ( ; tosplice != NIL && is_cons(cdr(tosplice)); 
+			tosplice = cdr(tosplice) );
+		  *last = tosplice;
+		  break;
 
-	  r = eval(car(cdr(sexp)), env, &tosplice);
-	  if ( r < 0 )
-	    return r;
-
-	  switch( LREG_TYPE(tosplice) )
-	    {
-	      lreg_t tail = NIL;
-	    case LREG_CONS:
-	      *first = tail = tosplice;
-	      for ( ; tosplice != NIL && is_cons(cdr(tosplice)); 
-		    tosplice = cdr(tosplice) );
-	      *last = tosplice;
-	      break;
-
-	    default:
+		default:
 	      *first = tosplice;
 	      break;
+		}
+	    }
+	  else
+	    {
+	      lreg_t qqd;
+	      _qquote(cdr(sexp), env, &qqd, NULL, nested - 1);
+	      *first = cons(sym_splice, qqd);
 	    }
 	}
       else
 	{
 	  lreg_t qqa, qqd, qqalast = NIL;
 
-	  r = _qquote(car(sexp), env, &qqa, &qqalast);
+	  r = _qquote(car(sexp), env, &qqa, &qqalast, nested);
 	  if ( r < 0 )
 	    return r;
 
-	  r = _qquote(cdr(sexp), env, &qqd, NULL);
+	  r = _qquote(cdr(sexp), env, &qqd, NULL, nested);
 	  if ( r < 0 )
 	    return r;
 
@@ -550,7 +574,7 @@ static int _qquote(lreg_t sexp, lenv_t *env, lreg_t *first, lreg_t *last)
 LAC_API static int proc_quasiquote(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 1);
-  return _qquote(car(args), env, res, NULL);
+  return _qquote(car(args), env, res, NULL, 0);
 }
 
 LAC_API static int proc_car(lreg_t args, lenv_t *env, lreg_t *res)
