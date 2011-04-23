@@ -188,16 +188,18 @@ lreg_t cons(lreg_t a, lreg_t d)
 lreg_t car(lreg_t lr)
 {
   cons_t *cons = (cons_t *)LREG_PTR(lr);
-  assert(is_cons(lr));
-  
+  assert(is_cons(lr) | (lr == NIL) );
+  if ( lr == NIL )
+    return NIL;
   return cons->a;
 }
 
 lreg_t cdr(lreg_t lr)
 {
   cons_t *cons = (cons_t *)LREG_PTR(lr);
-  assert(is_cons(lr));
-  
+  assert(is_cons(lr) | (lr == NIL));
+  if ( lr == NIL )
+    return NIL;
   return cons->d;
 }
 
@@ -278,10 +280,8 @@ int evargs(lreg_t list, lenv_t *env, lreg_t *res)
   return -1;
 }
 
-int evbind(lreg_t binds, lreg_t args, lenv_t *env, lenv_t *lenv)
+int evbind(lreg_t binds, lreg_t args, lenv_t *lenv)
 {
-  env_pushnew(env, lenv);
-
   for ( ; binds != NIL; binds = cdr(binds), args = cdr(args) )
     {
       if ( !is_cons(binds) )
@@ -321,19 +321,12 @@ int evbind(lreg_t binds, lreg_t args, lenv_t *env, lenv_t *lenv)
   return 0;
 }
 
-int apply(lreg_t proc, lreg_t args, lenv_t *env, lreg_t *res)
+static int _apply(lreg_t proc, lreg_t evd, lenv_t *env, lreg_t *res)
 {
   int r;
-  lenv_t *newenv;
-  lreg_t evd = args;
-
   switch ( LREG_TYPE(proc) )
     {
     case LREG_LLPROC:
-      r = evargs(args, env, &evd);
-      if( r != 0 )
-	return r;
-      /* Passthrough */
     case LREG_SFORM:
       r = lreg_to_llproc(proc)(evd, env, res);
       break;
@@ -342,10 +335,8 @@ int apply(lreg_t proc, lreg_t args, lenv_t *env, lreg_t *res)
 	lenv_t lenv;
 	lenv_t *procenv = get_closure_env(proc);
 	lreg_t lproc = get_closure_proc(proc);
-	r = evargs(args, env, &evd);
-	if ( r != 0 )
-	  return r;
-	r = evbind(get_proc_binds(lproc), evd, procenv, &lenv);
+	env_pushnew(procenv, &lenv);
+	r = evbind(get_proc_binds(lproc), evd, &lenv);
 	if ( r != 0 )
 	  return r;
 	r = evlist(get_proc_evlist(lproc), &lenv, res);
@@ -361,7 +352,8 @@ int apply(lreg_t proc, lreg_t args, lenv_t *env, lreg_t *res)
 	/*
 	 * Macro expand
 	 */
-	r = evbind(get_proc_binds(lproc), evd, procenv, &lenv);
+	env_pushnew(procenv, &lenv);
+	r = evbind(get_proc_binds(lproc), evd, &lenv);
 	if ( r != 0 )
 	  return r;
 	r = evlist(get_proc_evlist(lproc), &lenv, &unevald);
@@ -377,9 +369,34 @@ int apply(lreg_t proc, lreg_t args, lenv_t *env, lreg_t *res)
     default:
       fprintf(stderr, "Not a procedure: "); lac_print(stderr, proc); fprintf(stderr, "\n");
       r = -1;
+      break;
     }
 
   return r;
+}
+
+int apply(lreg_t proc, lreg_t args, lenv_t *env, lreg_t *res)
+{
+  int r;
+  lenv_t *newenv;
+  lreg_t evd = args;
+
+  switch ( LREG_TYPE(proc) )
+    {
+    case LREG_LLPROC:
+    case LREG_LAMBDA:
+      r = evargs(args, env, &evd);
+      if( r != 0 )
+	return r;
+      break;
+    case LREG_SFORM:
+    case LREG_MACRO:
+      break;
+    default:
+      fprintf(stderr, "Not a procedure: "); lac_print(stderr, proc); fprintf(stderr, "\n");
+      return -1;
+    }
+  return _apply(proc, evd, env, res);
 }
 
 static int eval_sym(lreg_t sym, lenv_t *env, lreg_t *res)
@@ -454,56 +471,80 @@ LAC_API static int proc_quote(lreg_t args, lenv_t *env, lreg_t *res)
   return 0;
 }
 
-static int _qquote(lreg_t sexp, lenv_t *env, lreg_t *first, lreg_t *last)
+static int _qquote(lreg_t sexp, lenv_t *env, lreg_t *first, lreg_t *last, int nested)
 {
   int r;
   switch ( LREG_TYPE(sexp) )
     {
     case LREG_CONS:
-      if ( car(sexp) == sym_unquote )
+      if ( car(sexp) == sym_quasiquote )
 	{
-	  r = eval(car(cdr(sexp)), env, first);
-	  if ( r < 0 )
-	    return r;
-	  /* * first written by eval */
+	  lreg_t qqd;
+	  _qquote(cdr(sexp), env, &qqd, NULL, nested+1);
+	  *first = cons(sym_quasiquote, qqd);
+	}
+      else if ( (car(sexp) == sym_unquote) )
+	{
+	  if ( nested == 0 )
+	    {
+	      r = eval(car(cdr(sexp)), env, first);
+	      if ( r < 0 )
+		return r;
+	      /* * first written by eval */
+	    }
+	  else
+	    {
+	      lreg_t qqd;
+	      _qquote(cdr(sexp), env, &qqd, NULL, nested - 1);
+	      *first = cons(sym_unquote, qqd);
+	    }
 	}
       else if ( car(sexp) == sym_splice )
 	{
-	  lreg_t tosplice;
-	  if ( last == NULL )
+	  if ( nested == 0 )
 	    {
-	      fprintf(stderr, "SPLICE expected on car only.\n");
-	      return -1;
-	    }
+	      lreg_t tosplice;
+	      if ( last == NULL )
+		{
+		  fprintf(stderr, "SPLICE expected on car only.\n");
+		  return -1;
+		}
+	      
+	      r = eval(car(cdr(sexp)), env, &tosplice);
+	      if ( r < 0 )
+		return r;
+	      
+	      switch( LREG_TYPE(tosplice) )
+		{
+		  lreg_t tail = NIL;
+		case LREG_CONS:
+		  *first = tail = tosplice;
+		  for ( ; tosplice != NIL && is_cons(cdr(tosplice)); 
+			tosplice = cdr(tosplice) );
+		  *last = tosplice;
+		  break;
 
-	  r = eval(car(cdr(sexp)), env, &tosplice);
-	  if ( r < 0 )
-	    return r;
-
-	  switch( LREG_TYPE(tosplice) )
-	    {
-	      lreg_t tail = NIL;
-	    case LREG_CONS:
-	      *first = tail = tosplice;
-	      for ( ; tosplice != NIL && is_cons(cdr(tosplice)); 
-		    tosplice = cdr(tosplice) );
-	      *last = tosplice;
-	      break;
-
-	    default:
+		default:
 	      *first = tosplice;
 	      break;
+		}
+	    }
+	  else
+	    {
+	      lreg_t qqd;
+	      _qquote(cdr(sexp), env, &qqd, NULL, nested - 1);
+	      *first = cons(sym_splice, qqd);
 	    }
 	}
       else
 	{
 	  lreg_t qqa, qqd, qqalast = NIL;
 
-	  r = _qquote(car(sexp), env, &qqa, &qqalast);
+	  r = _qquote(car(sexp), env, &qqa, &qqalast, nested);
 	  if ( r < 0 )
 	    return r;
 
-	  r = _qquote(cdr(sexp), env, &qqd, NULL);
+	  r = _qquote(cdr(sexp), env, &qqd, NULL, nested);
 	  if ( r < 0 )
 	    return r;
 
@@ -535,7 +576,7 @@ static int _qquote(lreg_t sexp, lenv_t *env, lreg_t *first, lreg_t *last)
 LAC_API static int proc_quasiquote(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 1);
-  return _qquote(car(args), env, res, NULL);
+  return _qquote(car(args), env, res, NULL, 0);
 }
 
 LAC_API static int proc_car(lreg_t args, lenv_t *env, lreg_t *res)
@@ -626,6 +667,17 @@ LAC_API static int proc_eq(lreg_t args, lenv_t *env, lreg_t *res)
     }
 
   *res = ans;
+  return 0;
+}
+
+LAC_API static int proc_apply(lreg_t args, lenv_t *env, lreg_t *res)
+{
+  _EXPECT_ARGS(args, 2);
+  int r;
+  r = _apply(car(args), car(cdr(args)), env, res);
+  if ( r != 0 )
+    return r;
+
   return 0;
 }
 
@@ -840,6 +892,7 @@ static void machine_init(void)
   bind_symbol(register_symbol("RPLACA"), llproc_to_lreg(proc_rplaca));
   bind_symbol(register_symbol("RPLACD"), llproc_to_lreg(proc_rplacd));
   bind_symbol(register_symbol("EQ"), llproc_to_lreg(proc_eq));
+  bind_symbol(register_symbol("APPLY"), llproc_to_lreg(proc_apply));
   bind_symbol(register_symbol("LOAD"), llproc_to_lreg(proc_load));
   bind_symbol(register_symbol("SET"), llproc_to_lreg(proc_set));
   bind_symbol(register_symbol("GENSYM"), llproc_to_lreg(proc_gensym));

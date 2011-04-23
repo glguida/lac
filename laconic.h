@@ -25,6 +25,25 @@
 #include <assert.h>
 #include <gc/gc.h>
 
+/*
+ * LREG/TREG model.
+ *
+ * We require GC-allocated memory to be 8-byte aligned, so that we can
+ * use the least significant three bits for storing type information
+ * (up to seven types). Extended types (types whose id cannot be
+ * decoded in three bits) are encoded via the EXTT-type LREG, whose
+ * PTR points to a TREG, capable of storing a full pointer and a
+ * bigger tag.
+ * This is potentially slow, since we will allocate memory with the GC
+ * everytime we create a LREG.
+ * As an optimization, in x86-64 systems we exploit the fact that
+ * every pointer has unused bits from the 48th to the 63th. These
+ * 16bits are used to store the full pointer (in the upper 48 bits)
+ * and a full 12-bit tag (bits 4 to 16) and the 3 bit tag (0 to
+ * 2). Bit 3 is unused to avoid more complicated masks that affect
+ * performances.
+ */
+
 typedef uintptr_t lreg_t;
 typedef struct {
   unsigned tag;
@@ -55,8 +74,12 @@ static inline unsigned lreg_type(lreg_t lr)
   if ( (lr & LREG_TYPE_MASK) != LREG_EXTT )
     return lr & LREG_TYPE_MASK;
 
+#ifdef __x86_64__
+  return (lr >> 4) & 0xfff;
+#else
   tr = (treg_t *)((uintptr_t)lr & ~LREG_TYPE_MASK);
   return tr->tag;
+#endif
 }
 
 static inline void *lreg_ptr(lreg_t lr)
@@ -65,8 +88,12 @@ static inline void *lreg_ptr(lreg_t lr)
   if ( (lr & LREG_TYPE_MASK) != LREG_EXTT )
     return (void *)((uintptr_t)lr & ~LREG_TYPE_MASK);
 
+#ifdef __x86_64__
+  return (void *)(lr >> 16);
+#else
   tr = (treg_t *)((uintptr_t)lr & ~LREG_TYPE_MASK);
   return tr->ptr;
+#endif
 }
 
 static inline lreg_t lreg(void *ptr, unsigned type)
@@ -75,10 +102,15 @@ static inline lreg_t lreg(void *ptr, unsigned type)
   if ( type < LREG_EXTT )
     return (lreg_t)((uintptr_t)ptr & ~LREG_TYPE_MASK) | type;
 
+#ifdef __x86_64__
+  assert( type == (type & 0xfff) );
+  return (lreg_t)(((uintptr_t)ptr << 16) | (type << 4) | LREG_EXTT);
+#else
   tr = GC_malloc(sizeof(treg_t));
   tr->tag = type;
   tr->ptr = ptr;
   return (lreg_t)(((uintptr_t)tr & ~LREG_TYPE_MASK) | LREG_EXTT);
+#endif
 }
 
 #define LREG_PTR(lr) lreg_ptr(lr)
