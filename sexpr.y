@@ -23,6 +23,8 @@
 #include <gc/gc.h>
 #include "laconic.h"
 
+int yylex(lreg_t *);
+void yyerror();
 #define YYSTYPE lreg_t
 
 %}
@@ -61,7 +63,7 @@ listelem: /*EMPTY*/ { $$ = NIL; }
 
 %%
 
-yyerror ()  /* Called by yyparse on error */
+void yyerror ()  /* Called by yyparse on error */
 {
   printf ("Syntax Error\n");
 }

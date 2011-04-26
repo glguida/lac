@@ -20,7 +20,7 @@
 %{
 #define YYSTYPE lreg_t
 #define YY_DECL int yylex (lreg_t *lvalp)
-#include <gc/gc.h>
+#include <ctype.h>
 #include <strings.h>
 #include "laconic.h"
 #include "sexpr.tab.h"

@@ -25,6 +25,8 @@
 #include <assert.h>
 #include <gc/gc.h>
 
+void lac_error(const char *);
+
 /*
  * LREG/TREG model.
  *
@@ -70,7 +72,9 @@ enum
 
 static inline unsigned lreg_type(lreg_t lr)
 {
+#ifndef __x86_64__
   treg_t *tr;
+#endif
   if ( (lr & LREG_TYPE_MASK) != LREG_EXTT )
     return lr & LREG_TYPE_MASK;
 
@@ -84,7 +88,9 @@ static inline unsigned lreg_type(lreg_t lr)
 
 static inline void *lreg_ptr(lreg_t lr)
 {
+#ifndef __x86_64__
   treg_t *tr;
+#endif
   if ( (lr & LREG_TYPE_MASK) != LREG_EXTT )
     return (void *)((uintptr_t)lr & ~LREG_TYPE_MASK);
 
@@ -98,7 +104,9 @@ static inline void *lreg_ptr(lreg_t lr)
 
 static inline lreg_t lreg(void *ptr, unsigned type)
 {
+#ifndef __x86_64__
   treg_t *tr;
+#endif
   if ( type < LREG_EXTT )
     return (lreg_t)((uintptr_t)ptr & ~LREG_TYPE_MASK) | type;
 

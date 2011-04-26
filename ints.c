@@ -19,7 +19,6 @@
 
 /* Simple Type Extension example. */
 #include "laconic.h"
-#include <gc/gc.h>
 #include <stdio.h>
 #include <limits.h>
 

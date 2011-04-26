@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <search.h>
 #include <string.h>
+#include <sys/time.h>
 #include <gc/gc.h>
 #include "laconic.h"
 
@@ -158,7 +159,6 @@ void lac_print(FILE *fd, lreg_t lr)
 /* Get symbol from string and intern it if new. */
 lreg_t intern_symbol(char *s)
 {
-  lreg_t c;
   ENTRY e = { .key = s }, *r;
 
   /* Assert that the char pointer is actually aligned. If not it means
@@ -178,7 +178,6 @@ void bind_symbol(lreg_t sym, lreg_t val)
 
 lreg_t cons(lreg_t a, lreg_t d)
 {
-  lreg_t r;
   cons_t *c = GC_malloc(sizeof(cons_t));
   c->a = a;
   c->d = d;
@@ -378,7 +377,6 @@ static int _apply(lreg_t proc, lreg_t evd, lenv_t *env, lreg_t *res)
 int apply(lreg_t proc, lreg_t args, lenv_t *env, lreg_t *res)
 {
   int r;
-  lenv_t *newenv;
   lreg_t evd = args;
 
   switch ( LREG_TYPE(proc) )
@@ -402,7 +400,6 @@ int apply(lreg_t proc, lreg_t args, lenv_t *env, lreg_t *res)
 static int eval_sym(lreg_t sym, lenv_t *env, lreg_t *res)
 {
   int r;
-  lreg_t rassq;
   if (!is_symbol(sym))
     {
       lac_error("Not a symbol.");
@@ -834,7 +831,6 @@ LAC_API static int proc_gensym(lreg_t args, lenv_t *env, lreg_t *res)
 static void repl(FILE *fd);
 LAC_API static int proc_load(lreg_t args, lenv_t *env, lreg_t *res)
 {
-  int r;
   _EXPECT_ARGS(args, 1);
 
   if ( LREG_TYPE(car(args)) != LREG_STRING )
@@ -864,8 +860,6 @@ lreg_t register_symbol(const char *s)
 
 static void machine_init(void)
 {
-  char *s;
-
   /* Init symtab. */
   hcreate(500);
 
@@ -939,7 +933,7 @@ static void repl(FILE *fd)
 		  lac_print(stdout, res); 
 		  printf("\n");
 		  printf("Evaluation took %ld seconds and %ld microseconds.\n",
-			 t2.tv_sec - t1.tv_sec, 
+			 t2.tv_usec >= t1.tv_usec ? t2.tv_sec - t1.tv_sec : t2.tv_sec - t1.tv_sec - 1, 
 			 t2.tv_usec >= t1.tv_usec ? t2.tv_usec - t1.tv_usec : t2.tv_usec + 1000000L - t1.tv_usec);
 		}
 	    }
@@ -980,4 +974,5 @@ int main()
   library_init();
   repl(stdin);
   printf("\ngoodbye!\n");
+  return 0;
 }
