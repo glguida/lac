@@ -279,8 +279,9 @@ int evargs(lreg_t list, lenv_t *env, lreg_t *res)
   return -1;
 }
 
-int evbind(lreg_t binds, lreg_t args, lenv_t *lenv)
+int evbind(lreg_t binds, lreg_t args, lenv_t *defenv, lenv_t *evenv)
 {
+  lreg_t evd;
   for ( ; binds != NIL; binds = cdr(binds), args = cdr(args) )
     {
       if ( !is_cons(binds) )
@@ -290,12 +291,15 @@ int evbind(lreg_t binds, lreg_t args, lenv_t *lenv)
 	}
       if ( car(binds) == sym_rest )
 	{
+          evd = args;
 	  if ( !is_cons(cdr(binds)) )
 	    {
 	      lac_error("Expected binding after &rest");
 	      return -1;
 	    }
-	  env_define(lenv, car(cdr(binds)), args);
+          if ( evenv != NULL )
+            evargs(args, evenv, &evd);
+	  env_define(defenv, car(cdr(binds)), evd);
 	  args = NIL;
 	  if ( cdr(cdr(binds)) != NIL )
 	    {
@@ -309,7 +313,10 @@ int evbind(lreg_t binds, lreg_t args, lenv_t *lenv)
 	  lac_error("Not enough arguments to function.");
 	  return -1;
 	}
-      env_define(lenv, car(binds), car(args));
+      evd = car(args);
+      if ( evenv != NULL )
+        eval(car(args), evenv, &evd);
+      env_define(defenv, car(binds), evd);
     }
 
   if ( args != NIL )
@@ -320,7 +327,7 @@ int evbind(lreg_t binds, lreg_t args, lenv_t *lenv)
   return 0;
 }
 
-static int _apply(lreg_t proc, lreg_t evd, lenv_t *env, lreg_t *res)
+static int _apply(lreg_t proc, lreg_t evd, lenv_t *env, int doeval, lreg_t *res)
 {
   int r;
   switch ( LREG_TYPE(proc) )
@@ -335,7 +342,7 @@ static int _apply(lreg_t proc, lreg_t evd, lenv_t *env, lreg_t *res)
 	lenv_t *procenv = get_closure_env(proc);
 	lreg_t lproc = get_closure_proc(proc);
 	env_pushnew(procenv, &lenv);
-	r = evbind(get_proc_binds(lproc), evd, &lenv);
+	r = evbind(get_proc_binds(lproc), evd, &lenv, doeval ? env : NULL);
 	if ( r != 0 )
 	  return r;
 	r = evlist(get_proc_evlist(lproc), &lenv, res);
@@ -352,7 +359,7 @@ static int _apply(lreg_t proc, lreg_t evd, lenv_t *env, lreg_t *res)
 	 * Macro expand
 	 */
 	env_pushnew(procenv, &lenv);
-	r = evbind(get_proc_binds(lproc), evd, &lenv);
+	r = evbind(get_proc_binds(lproc), evd, &lenv, doeval ? env : NULL);
 	if ( r != 0 )
 	  return r;
 	r = evlist(get_proc_evlist(lproc), &lenv, &unevald);
@@ -377,15 +384,12 @@ static int _apply(lreg_t proc, lreg_t evd, lenv_t *env, lreg_t *res)
 int apply(lreg_t proc, lreg_t args, lenv_t *env, lreg_t *res)
 {
   int r;
-  lreg_t evd = args;
-
+  int doeval = 0;
   switch ( LREG_TYPE(proc) )
     {
     case LREG_LLPROC:
     case LREG_LAMBDA:
-      r = evargs(args, env, &evd);
-      if( r != 0 )
-	return r;
+      doeval = 1;
       break;
     case LREG_SFORM:
     case LREG_MACRO:
@@ -394,7 +398,8 @@ int apply(lreg_t proc, lreg_t args, lenv_t *env, lreg_t *res)
       fprintf(stderr, "Not a procedure: "); lac_print(stderr, proc); fprintf(stderr, "\n");
       return -1;
     }
-  return _apply(proc, evd, env, res);
+  r = _apply(proc, args, env, doeval, res);
+  return r;
 }
 
 static int eval_sym(lreg_t sym, lenv_t *env, lreg_t *res)
@@ -579,57 +584,66 @@ LAC_API static int proc_quasiquote(lreg_t args, lenv_t *env, lreg_t *res)
 LAC_API static int proc_car(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 1);
-  lreg_t argument = car(args);
+  lreg_t arg1;
+  eval(car(args), env, &arg1);
 
   /* LISP-specific! */
-  if (argument == NIL)
+  if (arg1 == NIL)
     {
       *res = NIL;
       return 0;
     }
 
-  if (!is_cons(argument))
+  if ( !is_cons(arg1) )
     _ERROR_AND_RET("%s: argument is not cons\n", __func__);
   
-  *res = car(argument);
+  *res = car(arg1);
   return 0;
 }
 
 LAC_API static int proc_cdr(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 1);
-  lreg_t argument = car(args);
+  lreg_t arg1;
+  eval(car(args), env, &arg1);
 
   /* LISP-specific!
      If I really want to keep this spec I should change cdr() and
      car() to return NIL on NIL and remove these checks. */
-  if (argument == NIL)
+  if (arg1 == NIL)
     {
       *res = NIL;
       return 0;
     }
 
-  if (!is_cons(argument))
+  if (!is_cons(arg1))
     _ERROR_AND_RET("%s: argument is not cons\n", __func__);
   
-  *res = cdr(argument);
+  *res = cdr(arg1);
   return 0;
 }
 
 LAC_API static int proc_cons(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 2);
-  *res = cons(car(args), car(cdr(args)));
+  lreg_t arg1, arg2;
+  eval(car(args), env, &arg1);
+  eval(car(cdr(args)), env, &arg2);
+  *res = cons(arg1, arg2);
   return 0;
 }
 
 LAC_API static int proc_rplaca(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 2);
-  lreg_t cons = car(args);
-  if ( !is_cons(car(args)) )
+  lreg_t arg1, arg2;
+  eval(car(args), env, &arg1);
+  eval(car(cdr(args)), env, &arg2);
+
+  lreg_t cons = arg1;
+  if ( !is_cons(arg1) )
     _ERROR_AND_RET("%s: argument is not cons\n", __func__);
-  get_cons(cons)->a = car(cdr(args));
+  get_cons(cons)->a = arg2;
   *res = cons;
   return 0;
 }
@@ -637,10 +651,14 @@ LAC_API static int proc_rplaca(lreg_t args, lenv_t *env, lreg_t *res)
 LAC_API static int proc_rplacd(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 2);
-  lreg_t cons = car(args);
-  if ( !is_cons(car(args)) )
+  lreg_t arg1, arg2;
+  eval(car(args), env, &arg1);
+  eval(car(cdr(args)), env, &arg2);
+
+  lreg_t cons = arg1;
+  if ( !is_cons(arg1) )
     _ERROR_AND_RET("%s: argument is not cons\n", __func__);
-  get_cons(cons)->d = car(cdr(args));
+  get_cons(cons)->d = arg2;
   *res = cons;
   return 0;
 }
@@ -649,8 +667,10 @@ LAC_API static int proc_eq(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 2);
   lreg_t ans = sym_false;
-  lreg_t arg1 = car(args);
-  lreg_t arg2 = car(cdr(args));
+  lreg_t arg1;
+  lreg_t arg2;
+  eval(car(args), env, &arg1);
+  eval(car(cdr(args)), env, &arg2);
 
   if ( arg1 == arg2 )
     ans = sym_true;
@@ -671,7 +691,12 @@ LAC_API static int proc_apply(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 2);
   int r;
-  r = _apply(car(args), car(cdr(args)), env, res);
+  lreg_t arg1, arg2;
+  eval(car(args), env, &arg1);
+  eval(car(cdr(args)), env, &arg2);
+
+
+  r = _apply(arg1, arg2, env, 0, res);
   if ( r != 0 )
     return r;
 
@@ -784,26 +809,26 @@ LAC_API static int proc_define(lreg_t args, lenv_t *env, lreg_t *res)
 LAC_API static int proc_set(lreg_t args, lenv_t *env, lreg_t *res)
 {
   int r;
-  lreg_t set;
+  lreg_t arg1, arg2;
   _EXPECT_ARGS(args, 2);
+  eval(car(args), env, &arg1);
+  eval(car(cdr(args)), env, &arg2);
 
-  if ( !is_symbol(car(args)) )
+  if ( !is_symbol(arg1) )
     _ERROR_AND_RET("Syntax error in set\n");
 
-  set = car(cdr(args));
-
-  r = env_set(env, car(args), set);
+  r = env_set(env, arg1, arg2);
   if ( r < 0 )
     return r;
 
   if ( r == 0 )
     {
-      *res = set;
+      *res = arg2;
       return 0;
     }
 
   /* Not defined */
-  fprintf(stderr, "Not defined: "); lac_print(stderr, car(args)); fprintf(stderr, "\n");
+  fprintf(stderr, "Not defined: "); lac_print(stderr, arg1); fprintf(stderr, "\n");
   *res = NIL;
   return 0;
 }
@@ -832,11 +857,13 @@ static void repl(FILE *fd);
 LAC_API static int proc_load(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 1);
+  lreg_t arg1;
+  eval(car(args), env, &arg1);
 
-  if ( LREG_TYPE(car(args)) != LREG_STRING )
+  if ( LREG_TYPE(arg1) != LREG_STRING )
     _ERROR_AND_RET("Syntax error in load");
 
-  FILE *fd = fopen((char *)LREG_PTR(car(args)), "r");
+  FILE *fd = fopen((char *)LREG_PTR(arg1), "r");
   if ( fd == NULL )
     _ERROR_AND_RET("Could not open file");
 

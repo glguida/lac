@@ -62,9 +62,11 @@ LAC_API static int proc_mapcar(lreg_t args, lenv_t *env, lreg_t *res)
   _EXPECT_MIN_ARGS(args, 2);
   int r;
   lreg_t mapargs;
-  lreg_t fn = car(args);
-  lreg_t lists = cdr(args);
-  lreg_t outlist = NIL, tail;
+  lreg_t fn, lists;
+  lreg_t outlist = NIL, tail = NIL;
+  evargs(args, env, &args);
+  fn = car(args);
+  lists = cdr(args);
 
   switch ( LREG_TYPE(fn) )
     {
@@ -110,14 +112,16 @@ LAC_API static int proc_reduce(lreg_t args, lenv_t *env, lreg_t *res)
 {
   _EXPECT_ARGS(args, 2);
   int r;
+  lreg_t fn;
   lreg_t acc;
-  lreg_t fn = car(args);
   lreg_t list;
 
-  if ( !is_cons(car(cdr(args))) )
+  eval(car(args), env, &fn);
+  eval(car(cdr(args)), env, &list);
+
+  if ( !is_cons(list) )
       _ERROR_AND_RET("Syntax error in reduce\n");
 
-  list = car(cdr(args));
   acc = car(list);
   list = cdr(list);
 

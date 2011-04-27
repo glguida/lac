@@ -40,10 +40,12 @@ static void int_eq(lreg_t arg1, lreg_t arg2, lreg_t *res)
   *res = (n1 == n2) ? sym_true : sym_false;
 }
 
-#define _BINOP_CHECKS(a, b)			\
+#define _BINOP_CHECKS(a, b)				\
   _EXPECT_ARGS(args, 2);				\
-  lreg_t arg1 = car(args);				\
-  lreg_t arg2 = car(cdr(args));				\
+  lreg_t arg1;						\
+  lreg_t arg2;						\
+  eval(car(args), env, &arg1);				\
+  eval(car(cdr(args)), env, &arg2);			\
 							\
   if ( !(LREG_TYPE(arg1) == LREG_TYPE(arg2))		\
        || LREG_TYPE(arg1) != LREG_INTEGER )		\

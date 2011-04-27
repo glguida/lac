@@ -276,7 +276,9 @@ int apply(lreg_t proc, lreg_t args, lenv_t *env, lreg_t *res);
 LAC_API static int proc_##typename##p (lreg_t args, lenv_t *env, lreg_t *res) \
 {									\
   _EXPECT_ARGS(args, 1);						\
-  if ( LREG_TYPE(car(args)) == typeno )					\
+  lreg_t arg1;								\
+  eval(car(args), env, &arg1);						\
+  if ( LREG_TYPE(arg1) == typeno )					\
     *res = sym_true;							\
   else									\
     *res = sym_false;							\
