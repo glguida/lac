@@ -22,8 +22,13 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include <assert.h>
 #include <gc/gc.h>
+
+#ifdef NO_ASSERT
+#define assert(...)
+#else
+#include <assert.h>
+#endif
 
 void lac_error(const char *);
 
