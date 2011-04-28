@@ -30,7 +30,13 @@
 #include <assert.h>
 #endif
 
-void lac_error(const char *);
+#ifdef __GNUC__
+#define _noreturn __attribute__((noreturn))
+#else
+#define _noreturn
+#endif
+
+void lac_error(const char *) _noreturn;
 
 /*
  * LREG/TREG model.
@@ -185,7 +191,7 @@ lreg_t intern_symbol(char *s);
 
 #define LAC_API __attribute__((aligned(16)))
 
-typedef int (*lac_function_t)(lreg_t args, lenv_t *env, lreg_t *res);
+typedef lreg_t (*lac_function_t)(lreg_t args, lenv_t *env);
 static inline lac_function_t lreg_to_cfunc(lreg_t lr)
 {
   assert(is_llproc(lr) || is_sform(lr));
@@ -236,22 +242,23 @@ extern lreg_t sym_splice;
 
 typedef struct {
   void (*print)(FILE *fd, lreg_t lr);
-  int (*eval)(lreg_t lr, lreg_t *res);
-  void (*eq)(lreg_t arg1, lreg_t arg2, lreg_t *res);
+  lreg_t (*eval)(lreg_t lr);
+  lreg_t (*eq)(lreg_t arg1, lreg_t arg2);
 } ext_type_t;
 
 int ext_type_register(int typeno, ext_type_t *extty);
 
 void bind_symbol(lreg_t sym, lreg_t val);
 lreg_t register_symbol(const char *s);
-int eval(lreg_t list, lenv_t *env, lreg_t *res);
-int apply(lreg_t proc, lreg_t args, lenv_t *env, lreg_t *res);
+lreg_t evargs(lreg_t list, lenv_t *env);
+lreg_t eval(lreg_t list, lenv_t *env);
+lreg_t apply(lreg_t proc, lreg_t args, lenv_t *env);
 
 
 #define _ERROR_AND_RET(err, ...)		\
   do {						\
     fprintf(stderr, err, ##__VA_ARGS__);	\
-    return -1;					\
+    lac_error("");				\
   } while ( 0 )
 
 #define __EXPECT_MIN_ARGS__(args, num)					\
@@ -278,20 +285,16 @@ int apply(lreg_t proc, lreg_t args, lenv_t *env, lreg_t *res);
 
 
 #define LAC_DEFINE_TYPE_PFUNC(typename, typeno)				\
-LAC_API static int proc_##typename##p (lreg_t args, lenv_t *env, lreg_t *res) \
+LAC_API static lreg_t proc_##typename##p (lreg_t args, lenv_t *env)	\
 {									\
   _EXPECT_ARGS(args, 1);						\
-  lreg_t arg1;								\
-  eval(car(args), env, &arg1);						\
+  lreg_t arg1 = eval(car(args), env);					\
   if ( LREG_TYPE(arg1) == typeno )					\
-    *res = sym_true;							\
+    return sym_true;							\
   else									\
-    *res = sym_false;							\
-  return 0;								\
+    return sym_false;							\
 }
-
 #define LAC_TYPE_PFUNC(typename) proc_##typename##p
-
 
 /*
  * Environment management.

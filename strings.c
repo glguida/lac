@@ -28,18 +28,16 @@ static void string_print(FILE *fd, lreg_t lr)
   fprintf(fd, "\"%s\" ", (char *)LREG_PTR(lr));
 }
 
-static int string_eval(lreg_t lr, lreg_t *res)
+static lreg_t string_eval(lreg_t lr)
 {
-  *res = lr;
-  return 0;
+  return lr;
 }
 
-static void string_eq(lreg_t arg1, lreg_t arg2, lreg_t *res)
+static lreg_t string_eq(lreg_t arg1, lreg_t arg2)
 {
-  lreg_t ans = sym_false;
   if ( arg1 == arg2 )
-    ans = sym_true;
-  *res = ans;
+    return sym_true;
+  return sym_false;
 }
 
 static int string_compare(lreg_t arg1, lreg_t arg2)
@@ -59,25 +57,22 @@ static int string_compare(lreg_t arg1, lreg_t arg2)
     _ERROR_AND_RET("Function requires two strings!\n");
 
 
-LAC_API int proc_string_lessp(lreg_t args, lenv_t *env, lreg_t *res)
+LAC_API lreg_t proc_string_lessp(lreg_t args, lenv_t *env)
 {
   BINARY_STR_OP_CHECKS(args);
-  *res = string_compare(s1, s2) >= 0 ? sym_false : sym_true;
-  return 0;
+  return string_compare(s1, s2) >= 0 ? sym_false : sym_true;
 }
 
-LAC_API static int proc_string_greaterp(lreg_t args, lenv_t *env, lreg_t *res)
+LAC_API static lreg_t proc_string_greaterp(lreg_t args, lenv_t *env)
 {
   BINARY_STR_OP_CHECKS(args);
-  *res = string_compare(s1, s2) <= 0 ? sym_false : sym_true;
-  return 0;
+  return string_compare(s1, s2) <= 0 ? sym_false : sym_true;
 }
 
-LAC_API static int proc_string_equal(lreg_t args, lenv_t *env, lreg_t *res)
+LAC_API static lreg_t proc_string_equal(lreg_t args, lenv_t *env)
 {
   BINARY_STR_OP_CHECKS(args);
-  *res = string_compare(s1, s2) != 0 ? sym_false : sym_true;
-  return 0;
+  return string_compare(s1, s2) != 0 ? sym_false : sym_true;
 }
 
 LAC_DEFINE_TYPE_PFUNC(string, LREG_STRING)
