@@ -17,10 +17,14 @@
    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-/* Simple Type Extension example. */
 #include "laconic.h"
 #include <stdio.h>
 #include <limits.h>
+
+
+/*
+  LAC Type Interface.
+ */
 
 static void int_print(FILE *fd, lreg_t lr)
 {
@@ -38,6 +42,13 @@ static lreg_t int_eq(lreg_t arg1, lreg_t arg2)
   long n2 = (long)LREG_PTR(arg2);
   return (n1 == n2) ? sym_true : sym_false;
 }
+
+static ext_type_t int_ty = { .print = int_print, .eval = int_eval, .eq = int_eq };
+
+
+/*
+  Additional procedures.
+ */
 
 #define _BINOP_CHECKS(a, b)				\
   _EXPECT_ARGS(args, 2);				\
@@ -136,9 +147,22 @@ LAC_API static lreg_t proc_div(lreg_t args, lenv_t *env)
   return LREG((void *)n, LREG_INTEGER);
 }
 
+LAC_API static lreg_t proc_greater(lreg_t args, lenv_t *env)
+{
+  long n1, n2;
+  _BINOP_CHECKS(n1, n2);
+  return n1 > n2 ? sym_true : sym_false;
+}
+
+LAC_API static lreg_t proc_less(lreg_t args, lenv_t *env)
+{
+  long n1, n2;
+  _BINOP_CHECKS(n1, n2);
+  return n1 < n2 ? sym_true : sym_false;
+}
+
 LAC_DEFINE_TYPE_PFUNC(integer, LREG_INTEGER);
 
-static ext_type_t int_ty = { .print = int_print, .eval = int_eval, .eq = int_eq };
 
 void int_init(void)
 {
@@ -149,4 +173,6 @@ void int_init(void)
   bind_symbol(register_symbol("*"), llproc_to_lreg(proc_star));
   bind_symbol(register_symbol("%"), llproc_to_lreg(proc_mod));
   bind_symbol(register_symbol("/"), llproc_to_lreg(proc_div));
+  bind_symbol(register_symbol(">"), llproc_to_lreg(proc_greater));
+  bind_symbol(register_symbol("<"), llproc_to_lreg(proc_less));
 }

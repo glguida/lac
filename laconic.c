@@ -17,18 +17,25 @@
    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <search.h>
 #include <string.h>
 #include <setjmp.h>
 #include <sys/time.h>
 #include <gc/gc.h>
+#include <signal.h>
+#include <sigsegv.h>
 #include "laconic.h"
+
 
 /*
  * System environment
  */
 lenv_t null_env;
+char *lac_errmsg;
+lreg_t lac_errlreg;
+
 
 
 /*
@@ -46,13 +53,45 @@ lreg_t sym_rest;
 /*
  * Error handling.
  */
-jmp_buf main_jmp;
+jmp_buf lac_error_jmp;
+void lac_print(FILE *fd, lreg_t);
 
-void lac_error(const char *arg)
+
+void lac_error(char *arg, lreg_t errlr)
 {
-  /* TODO VA ARGS */
-  fprintf(stderr, "%s\n", arg);
-  _longjmp(main_jmp, 1);
+  lac_errmsg = arg;
+  lac_errlreg = errlr;
+  _longjmp(lac_error_jmp, 1);
+}
+
+void lac_error_print(FILE *f)
+{
+  fprintf(f, "(*LAC-ERROR* \"%s", lac_errmsg);
+  if (lac_errlreg != NIL) 
+    {
+      fprintf(f, ": ");
+      lac_print(f, lac_errlreg);
+    }
+  fprintf(f, "\")");
+}
+
+
+/*
+ * Stack Overflow handling.
+ */
+
+static sigset_t mainsigset;
+static char extra_stack[16384];
+
+static void stackovf_continuation(void *arg1, void *arg2, void *arg3)
+{
+  lac_error(arg1, NIL);
+}
+
+static void stackovf_handler()
+{
+  sigprocmask(SIG_SETMASK, &mainsigset, NULL);
+  sigsegv_leave_handler(stackovf_continuation, "STACK OVERFLOW", NULL, NULL);
 }
 
 
@@ -74,7 +113,7 @@ int ext_type_register(int typeno, ext_type_t *extty)
  * Read
  */
 
-#include "atoms.yy.h"
+#include "lexer.yy.h"
 extern int yyparse(lreg_t *);
 
 int lac_read(FILE *fd, lreg_t *res)
@@ -86,9 +125,23 @@ int lac_read(FILE *fd, lreg_t *res)
       yy_switch_to_buffer(yy_create_buffer(fd, YY_BUF_SIZE));
 
   r = yyparse(&statement);
-  if ( r >= 0 )
+
+  switch ( r ) {
+  case 0xf00: /* Statement */
     *res = statement;
-  return r;
+    return 1;
+
+  case 0: /* EOF */
+    *res = statement;
+    return 0; 
+
+  case 1: /* Syntax Error */
+  case 2: /* Memory Exhaustion */
+  default: /* Unknown */
+    lac_error("parser error", NIL);
+    /* Not reached. */
+    return 0;
+  }
 }
 
 
@@ -96,7 +149,6 @@ int lac_read(FILE *fd, lreg_t *res)
  * Print
  */
 
-void lac_print(FILE *fd, lreg_t);
 
 void lac_print_cons(FILE *fd, lreg_t lr)
 {
@@ -211,7 +263,7 @@ int assq(lreg_t key, lreg_t alist, lreg_t *res)
 {
   if (!is_cons(alist) && alist != NIL)
     {
-      lac_error("Invalid alist");
+      lac_error("Invalid alist", alist);
       /* Not reached. */
     }
 
@@ -221,7 +273,7 @@ int assq(lreg_t key, lreg_t alist, lreg_t *res)
       
       if (!is_cons(a))
 	{
-	  lac_error("Invalid alist");
+	  lac_error("Invalid alist", a);
           /* Not reached. */
 	}
 
@@ -257,7 +309,7 @@ lreg_t evargs(lreg_t list, lenv_t *env)
 
   if (!is_cons(list))
     {
-      lac_error("evargs: invalid arguments");
+      lac_error("evargs: invalid arguments", list);
       /* Not reached. */
     }
   return cons(eval(car(list), env), evargs(cdr(list), env));
@@ -270,7 +322,7 @@ void evbind(lreg_t binds, lreg_t args, lenv_t *defenv, lenv_t *evenv)
     {
       if ( !is_cons(binds) )
 	{
-	  lac_error("Incorrect binding list");
+	  lac_error("Incorrect binding list", binds);
           /* Not reached. */
 	}
       if ( car(binds) == sym_rest )
@@ -278,7 +330,7 @@ void evbind(lreg_t binds, lreg_t args, lenv_t *defenv, lenv_t *evenv)
           evd = args;
 	  if ( !is_cons(cdr(binds)) )
 	    {
-	      lac_error("Expected binding after &rest");
+	      lac_error("Expected binding after &rest", cdr(binds));
               /* Not reached. */
 	    }
           if ( evenv != NULL )
@@ -287,14 +339,14 @@ void evbind(lreg_t binds, lreg_t args, lenv_t *defenv, lenv_t *evenv)
 	  args = NIL;
 	  if ( cdr(cdr(binds)) != NIL )
 	    {
-	      lac_error("Syntax error in bindings\n");
+	      lac_error("Syntax error in bindings", cdr(cdr(binds)));
               /* Not reached. */
 	    }
 	  break;
 	}
       if ( args == NIL )
 	{
-	  lac_error("Not enough arguments to function.");
+	  lac_error("Not enough arguments to function.", NIL);
           /* Not reached. */
 	}
       evd = car(args);
@@ -305,7 +357,7 @@ void evbind(lreg_t binds, lreg_t args, lenv_t *defenv, lenv_t *evenv)
 
   if ( args != NIL )
     {
-      lac_error("Too many arguments to function.");
+      lac_error("Too many arguments to function.", args);
       /* Not reached. */
     }
 }
@@ -348,8 +400,7 @@ static lreg_t _apply(lreg_t proc, lreg_t evd, lenv_t *env, int doeval)
       }
       break;
     default:
-      fprintf(stderr, "Not a procedure: "); lac_print(stderr, proc); fprintf(stderr, "\n");
-      lac_error("");
+      lac_error("Not a procedure", proc);
       /* Not reached. */
       break;
     }
@@ -369,8 +420,7 @@ lreg_t apply(lreg_t proc, lreg_t args, lenv_t *env)
     case LREG_MACRO:
       break;
     default:
-      fprintf(stderr, "Not a procedure: "); lac_print(stderr, proc); fprintf(stderr, "\n");
-      lac_error("");
+      lac_error("Not a procedure", proc);
     }
   return _apply(proc, args, env, doeval);
 }
@@ -381,7 +431,7 @@ static lreg_t eval_sym(lreg_t sym, lenv_t *env)
   lreg_t ret;
   if (!is_symbol(sym))
     {
-      lac_error("Not a symbol.");
+      lac_error("Not a symbol", sym);
       /* Not reached. */
     }
 
@@ -389,8 +439,8 @@ static lreg_t eval_sym(lreg_t sym, lenv_t *env)
   if (r != 0)
     {
       if (r == 1)
-	  fprintf(stderr, "Symbol not defined: "); lac_print(stderr, sym); fprintf(stderr,"\n");
-      lac_error("Env lookup failure.");
+          lac_error("Symbol not defined", sym);
+      lac_error("Env lookup failure.", NIL);
     }
   return ret;
 }
@@ -414,7 +464,7 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
       if ( ext_types[LREG_TYPE(sexp)] != NULL )
 	return ext_types[LREG_TYPE(sexp)]->eval(sexp);
       else
-	lac_error("Undefined Extension Type! This is a serious LAC BUG().");
+	lac_error("Undefined Extension Type! This is a serious LAC BUG().", NIL);
         /* Not reached. */
     }
   return NIL;
@@ -460,7 +510,7 @@ static void _qquote(lreg_t sexp, lenv_t *env, lreg_t *first, lreg_t *last, int n
 	      lreg_t tosplice;
 
 	      if ( last == NULL )
-		lac_error("SPLICE expected on car only.");
+		lac_error("SPLICE expected on car only.", NIL);
       
 	      tosplice = eval(car(cdr(sexp)), env);
 	      switch( LREG_TYPE(tosplice) )
@@ -498,7 +548,7 @@ static void _qquote(lreg_t sexp, lenv_t *env, lreg_t *first, lreg_t *last, int n
 		get_cons(qqalast)->d = qqd;
 	      else if ( qqd != NIL )
 		lac_error("Dotted pairs in spliced list can be"
-			    " present only when splicing is at end of a list.");
+			    " present only when splicing is at end of a list.", qqd);
 
 	      *first = qqa;
 	    }
@@ -525,12 +575,12 @@ LAC_API static lreg_t proc_car(lreg_t args, lenv_t *env)
   _EXPECT_ARGS(args, 1);
   lreg_t arg1 = eval(car(args), env);
 
-  /* LISP-specific! */
+  /* Lisp-specific! */
   if (arg1 == NIL)
     return NIL;
 
   if ( !is_cons(arg1) )
-    _ERROR_AND_RET("%s: argument is not cons\n", __func__);
+    _ERROR_AND_RET("argument is not cons");
  
   return car(arg1); 
 }
@@ -540,14 +590,14 @@ LAC_API static lreg_t proc_cdr(lreg_t args, lenv_t *env)
   _EXPECT_ARGS(args, 1);
   lreg_t arg1 = eval(car(args), env);
 
-  /* LISP-specific!
+  /* Lisp-specific!
      If I really want to keep this spec I should change cdr() and
      car() to return NIL on NIL and remove these checks. */
   if (arg1 == NIL)
 	return NIL;
 
   if (!is_cons(arg1))
-    _ERROR_AND_RET("%s: argument is not cons\n", __func__);
+    _ERROR_AND_RET("argument is not cons");
 
   return cdr(arg1);  
 }
@@ -568,7 +618,7 @@ LAC_API static lreg_t proc_rplaca(lreg_t args, lenv_t *env)
   lreg_t arg2 = eval(car(cdr(args)), env);
 
   if ( !is_cons(arg1) )
-    _ERROR_AND_RET("%s: argument is not cons\n", __func__);
+    _ERROR_AND_RET("argument is not cons");
 
   get_cons(arg1)->a = arg2;
   return arg1;
@@ -581,7 +631,7 @@ LAC_API static lreg_t proc_rplacd(lreg_t args, lenv_t *env)
   lreg_t arg2 = eval(car(cdr(args)), env);
 
   if ( !is_cons(arg1) )
-    _ERROR_AND_RET("%s: argument is not cons\n", __func__);
+    _ERROR_AND_RET("argument is not cons");
 
   get_cons(arg1)->d = arg2;
   return arg1;
@@ -626,10 +676,10 @@ LAC_API static lreg_t proc_cond(lreg_t args, lenv_t *env)
     {
       lreg_t test = car(args);
       if ( !is_cons(test) )
-	_ERROR_AND_RET("Syntax error in cond\n");
+	_ERROR_AND_RET("Syntax error in cond");
 
       cond = eval(car(test), env);
-      /* LISP-specific! Scheme (as for R5RS) checks for #t,
+      /* Lisp-specific! Scheme (as for R5RS) checks for #t,
        * though guile doesn't.  */
       if ( cond != NIL )
 	{
@@ -671,7 +721,7 @@ LAC_API static lreg_t proc_lambda(lreg_t args, lenv_t *env)
   lenv_t *penv = GC_malloc(sizeof(lenv_t));
 
   if ( !is_cons(binds) && binds != NIL )
-    _ERROR_AND_RET("Syntax error in lambda\n");
+    _ERROR_AND_RET("Syntax error in lambda");
 
   env_pushnew(env, penv);
   return LREG(LREG_PTR(cons(args, LREG(penv, LREG_NIL))), LREG_LAMBDA);
@@ -686,7 +736,7 @@ LAC_API static lreg_t proc_macro(lreg_t args, lenv_t *env)
   lenv_t *penv = GC_malloc(sizeof(lenv_t));
 
   if ( !is_cons(binds) && binds != NIL )
-    _ERROR_AND_RET("Syntax error in macro\n");
+    _ERROR_AND_RET("Syntax error in macro");
 
   env_pushnew(env, penv);
   return LREG(LREG_PTR(cons(args, LREG(penv, LREG_NIL))), LREG_MACRO);
@@ -699,7 +749,7 @@ LAC_API static lreg_t proc_define(lreg_t args, lenv_t *env)
   _EXPECT_ARGS(args, 2);
 
   if ( !is_symbol(car(args)) )
-    _ERROR_AND_RET("Syntax error in define\n");
+    _ERROR_AND_RET("Syntax error in define");
 
   defd = eval(car(cdr(args)), env);
   env_define(env, car(args), defd);
@@ -714,11 +764,11 @@ LAC_API static lreg_t proc_set(lreg_t args, lenv_t *env)
   lreg_t arg2 = eval(car(cdr(args)), env);
 
   if ( !is_symbol(arg1) )
-    _ERROR_AND_RET("Syntax error in set\n");
+    _ERROR_AND_RET("Syntax error in set");
 
   r = env_set(env, arg1, arg2);
   if ( r < 0 )
-    lac_error("Error while setting env.");
+    lac_error("Error while setting env.", NIL);
 
   if ( r == 0 )
     return arg2;
@@ -748,9 +798,11 @@ LAC_API static lreg_t proc_gensym(lreg_t args, lenv_t *env)
   return ret;
 }
 
-static void repl(FILE *fd);
+int lac_read_eval(FILE *, lreg_t *, struct timeval *, struct timeval *);
 LAC_API static lreg_t proc_load(lreg_t args, lenv_t *env)
 {
+  int r;
+  lreg_t res;
   _EXPECT_ARGS(args, 1);
   lreg_t arg1 = eval(car(args), env);
 
@@ -761,9 +813,12 @@ LAC_API static lreg_t proc_load(lreg_t args, lenv_t *env)
   if ( fd == NULL )
     _ERROR_AND_RET("Could not open file");
 
-  repl(fd); // XXX: ret value?
+  while((r = lac_read_eval(fd, &res, NULL, NULL)) > 0);
   fclose(fd);
-  return sym_true;
+  if ( r == 0 ) 
+    return sym_true;
+  else 
+    return NIL;
 }
 
 
@@ -786,7 +841,7 @@ static void machine_init(void)
   /* Init Null Env */
   env_pushnew(NULL, &null_env);
 
-  /* LISP-style booleans.
+  /* Lisp-style booleans.
      Can be changed into Scheme-scheme. */
   sym_false = NIL;
   sym_true = register_symbol("T");
@@ -820,43 +875,24 @@ static void machine_init(void)
   sym_rest = register_symbol("&REST");
 }
 
-static void repl(FILE *fd)
+int lac_read_eval(FILE *infd, lreg_t *res, struct timeval *t1, struct timeval *t2)
 {
-  lreg_t res = NIL;
-  int quit = 0;
-  struct timeval t1, t2;
+  int r;
+  lreg_t tmp = NIL; 
 
-  for(;;)
-    {
-      if ( isatty(fileno(fd)) )
-	printf("lac> ");
+  r = lac_read(infd, &tmp);
+  if ( r <= 0 )
+    return r;
 
-      /* REPL :-) */
-      switch ( lac_read(fd, &res) )
-	{
-	case 0: /* EOF */
-	  quit = 1;
-	  break;
-	case 1: /* Syntax Error */
-	  break;
-	case 2: /* EVAL and PRINT */
-	  gettimeofday(&t1, NULL);
-	  res = eval(res, &null_env);
-	  gettimeofday(&t2, NULL);
-	  if ( isatty(fileno(fd)) )
-	   {
-	      printf("=> "); 
-	      lac_print(stdout, res); 
-	      printf("\n");
-	      printf("Evaluation took %ld seconds and %ld microseconds.\n",
-		     t2.tv_usec >= t1.tv_usec ? t2.tv_sec - t1.tv_sec : t2.tv_sec - t1.tv_sec - 1, 
-		     t2.tv_usec >= t1.tv_usec ? t2.tv_usec - t1.tv_usec : t2.tv_usec + 1000000L - t1.tv_usec);
-	    }
-	  break;
-	}
-      if (quit)
-	break;
-    }
+  if ( t1 != NULL )
+    gettimeofday(t1, NULL);
+
+  *res = eval(tmp, &null_env);
+    
+  if ( t2 != NULL )
+    gettimeofday(t2, NULL);
+
+  return 1;
 }
 
 void map_init(void);
@@ -871,29 +907,63 @@ static void modules_init()
 
 static void library_init(void)
 {
+  int r = 0; 
+  lreg_t res;
   FILE *fd = fopen("sys.lac", "r");
   if ( fd == NULL )
-    {
-      fprintf(stderr, "(ERROR: SYSTEM LIBRARY NOT FOUND)\n");
-      return;
-    }
-  repl(fd);
+    lac_error("SYSTEM LIBRARY NOT FOUND", NIL);
+
+  while((r = lac_read_eval(fd, &res, NULL, NULL)) > 0);
   fclose(fd);
+}
+
+
+int lac_init(FILE *errfd)
+{
+  sigset_t emptyset;
+  GC_init();
+ 
+  sigemptyset(&emptyset); 
+  sigprocmask(SIG_BLOCK, &emptyset, &mainsigset);
+  stackoverflow_install_handler(stackovf_handler, extra_stack, 16384);
+  machine_init();
+  modules_init();
+  if ( _setjmp(lac_error_jmp) != 0 )
+    {
+      fprintf(errfd, "(LAC-SYSTEM \"ERROR IN SYSTEM LIBRARY: %s\")\n", lac_errmsg);
+      return -1;
+    }
+  else
+    library_init();
+
+  return 0;
+}
+
+int lac_repl(FILE *infd, FILE *outfd, FILE *errfd)
+{
+  int r;
+  struct timeval t1, t2;
+  lreg_t res = NIL;
+  if ( _setjmp(lac_error_jmp) != 0 )
+    lac_error_print(errfd);
+  while((r = lac_read_eval(infd, &res, &t1, &t2)) > 0) {
+    if ( isatty(fileno(outfd)) )
+      {
+        fprintf(outfd, "=> "); 
+        lac_print(outfd, res); 
+        fprintf(outfd, "\n");
+        fprintf(outfd, "Evaluation took %ld seconds and %ld microseconds.\n",
+               t2.tv_usec >= t1.tv_usec ? t2.tv_sec - t1.tv_sec : t2.tv_sec - t1.tv_sec - 1, 
+               t2.tv_usec >= t1.tv_usec ? t2.tv_usec - t1.tv_usec : t2.tv_usec + 1000000L - t1.tv_usec);
+      }
+  }
+  return r;
 }
 
 int main()
 {
-  GC_init();
-  machine_init();
-  modules_init();
-  if ( _setjmp(main_jmp) != 0 )
-    fprintf(stderr, "Error in System Library.\n");
-  else 
-    library_init();
-
-  if ( _setjmp(main_jmp) != 0 )
-    fprintf(stderr, "Error.\n");
-  repl(stdin);
-  printf("\ngoodbye!\n");
+  lac_init(stderr);
+  lac_repl(stdin, stdout, stderr);
+  fprintf(stdout, "\ngoodbye!\n");
   return 0;
 }

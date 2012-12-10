@@ -1,6 +1,6 @@
 #include "laconic.h"
 #include <gc/gc.h>
-#include <strings.h>
+#include <string.h>
 
 /*
  * Utterly simple hash table implementation
@@ -8,7 +8,7 @@
 
 static unsigned ht_hashf(lreg_t key)
 {
-  return (key >> 5) % HT_SIZE;
+  return ((uintptr_t)LREG_PTR(key) >> 5) % HT_SIZE;
 }
 
 static int _ht_findptr(struct ht_entry *hte, lreg_t key, struct ht_entry **e)

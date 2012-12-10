@@ -36,8 +36,6 @@
 #define _noreturn
 #endif
 
-void lac_error(const char *) _noreturn;
-
 /*
  * LREG/TREG model.
  *
@@ -80,16 +78,16 @@ enum
     LREG_FLOAT,
     LREG_TYPES = 16
   };
-
+#undef __LAC_X86_64__OPT
 static inline unsigned lreg_type(lreg_t lr)
 {
-#ifndef __x86_64__
+#ifndef __LAC_x86_64__OPT
   treg_t *tr;
 #endif
   if ( (lr & LREG_TYPE_MASK) != LREG_EXTT )
     return lr & LREG_TYPE_MASK;
 
-#ifdef __x86_64__
+#ifdef __LAC_x86_64__OPT
   return (lr >> 4) & 0xfff;
 #else
   tr = (treg_t *)((uintptr_t)lr & ~LREG_TYPE_MASK);
@@ -99,13 +97,13 @@ static inline unsigned lreg_type(lreg_t lr)
 
 static inline void *lreg_ptr(lreg_t lr)
 {
-#ifndef __x86_64__
+#ifndef __LAC_x86_64__OPT
   treg_t *tr;
 #endif
   if ( (lr & LREG_TYPE_MASK) != LREG_EXTT )
     return (void *)((uintptr_t)lr & ~LREG_TYPE_MASK);
 
-#ifdef __x86_64__
+#ifdef __LAC_x86_64__OPT
   return (void *)(lr >> 16);
 #else
   tr = (treg_t *)((uintptr_t)lr & ~LREG_TYPE_MASK);
@@ -115,13 +113,13 @@ static inline void *lreg_ptr(lreg_t lr)
 
 static inline lreg_t lreg(void *ptr, unsigned type)
 {
-#ifndef __x86_64__
+#ifndef __LAC_x86_64__OPT
   treg_t *tr;
 #endif
   if ( type < LREG_EXTT )
     return (lreg_t)((uintptr_t)ptr & ~LREG_TYPE_MASK) | type;
 
-#ifdef __x86_64__
+#ifdef __LAC_x86_64__OPT
   assert( type == (type & 0xfff) );
   return (lreg_t)(((uintptr_t)ptr << 16) | (type << 4) | LREG_EXTT);
 #else
@@ -255,10 +253,9 @@ lreg_t eval(lreg_t list, lenv_t *env);
 lreg_t apply(lreg_t proc, lreg_t args, lenv_t *env);
 
 
-#define _ERROR_AND_RET(err, ...)		\
-  do {						\
-    fprintf(stderr, err, ##__VA_ARGS__);	\
-    lac_error("");				\
+#define _ERROR_AND_RET(err)	\
+  do {				\
+    lac_error(err, NIL);	\
   } while ( 0 )
 
 #define __EXPECT_MIN_ARGS__(args, num)					\
@@ -266,7 +263,7 @@ lreg_t apply(lreg_t proc, lreg_t args, lenv_t *env);
     int i;								\
     for ( i = 0; i < num; tmp = cdr(tmp), i++ )				\
       if ( tmp == NIL )							\
-	_ERROR_AND_RET("Not enough arguments to %s\n", __func__);	\
+	_ERROR_AND_RET("Not enough arguments");	\
   } while ( 0 )
 
 #define _EXPECT_MIN_ARGS(args, num)					\
@@ -280,7 +277,7 @@ lreg_t apply(lreg_t proc, lreg_t args, lenv_t *env);
     lreg_t tmp = args;							\
     __EXPECT_MIN_ARGS__(args, num);					\
     if ( tmp != NIL )							\
-      _ERROR_AND_RET("Too Many arguments to %s\n", __func__);		\
+      _ERROR_AND_RET("Too Many arguments");		\
   } while ( 0 )
 
 
@@ -296,6 +293,7 @@ LAC_API static lreg_t proc_##typename##p (lreg_t args, lenv_t *env)	\
 }
 #define LAC_TYPE_PFUNC(typename) proc_##typename##p
 
+void lac_error(char *, lreg_t) _noreturn;
 /*
  * Environment management.
  */

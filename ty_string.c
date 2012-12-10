@@ -21,7 +21,7 @@
 #include "laconic.h"
 #include <gc/gc.h>
 #include <stdio.h>
-#include <strings.h>
+#include <string.h>
 
 static void string_print(FILE *fd, lreg_t lr)
 {

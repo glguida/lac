@@ -10,15 +10,26 @@
 
 (defun fib (n)
   (cond 
-    ((eq n 0) 0)
-    ((eq n 1) 1) 
+    ((< n 2) n)
     (t (+ (fib (- n 2)) (fib (- n 1))))))
 
+(defun gcd (a b)
+  (cond
+    ((eq b 0) a)
+    (t (gcd b (% a b)))))
+
 ; A tribute to XKCD #710
-(defun collatz (n)
+(defun f-collatz (n)
   (cond 
+    ((eq n 1) 1)
     ((evenp n) (setq n (/ n 2))) 
     (t (setq n (+ (* 3 n) 1)))))
+
+(defun collatz (n)
+	(cond
+		((eq n 1) (list 1))
+		(t (cons n (collatz (f-collatz n)))))
+)
 
 ; 'A short ballad dedicated to the growth of programs'
 ;  http://cognitivecomputing.wordpress.com/1986/01/28/a-short-ballad-dedicated-to-the-growth-of-programs/
@@ -38,3 +49,4 @@
 (counter1)
 (counter1)
 (counter2)
+

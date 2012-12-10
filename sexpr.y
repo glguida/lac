@@ -24,29 +24,28 @@
 #include "laconic.h"
 
 int yylex(lreg_t *);
-void yyerror();
+void yyerror(lreg_t *, const char *);
 #define YYSTYPE lreg_t
 
 %}
 
-%pure_parser
 %parse-param { lreg_t *result }
+%lex-param { lreg_t *result }
 %token ATOM
 %token DELIMITER
 %token COMMA_AT
 
 %%
 
-input: /* EMPTY */
-       | statement input;
+input: | statement input ;
 ;
 
 statement: sexp { $$ = $1;
                   *result = $$;
-		  return 2;
+		  return 0xf00;
 }
 
-sexp:  ATOM { $$ = $1; }
+sexp:  ATOM { $$ = *result; }
        | '\'' sexp { $$ = cons(sym_quote, cons($2, NIL)); }
        | '`' sexp { $$ = cons(sym_quasiquote, cons($2, NIL)); }
        | COMMA_AT sexp { $$ = cons(sym_splice, cons($2, NIL)); }
@@ -63,7 +62,6 @@ listelem: /*EMPTY*/ { $$ = NIL; }
 
 %%
 
-void yyerror ()  /* Called by yyparse on error */
+void yyerror (lreg_t *lr, const char *msgp)  /* Called by yyparse on error */
 {
-  printf ("Syntax Error\n");
 }
