@@ -96,20 +96,6 @@ static void stackovf_handler()
 
 
 /*
- * External type handling.
- */
-static ext_type_t *ext_types[LREG_TYPES];
-
-int ext_type_register(int typeno, ext_type_t *extty)
-{
-  if ( typeno >= LREG_TYPES )
-    return -1;
-  ext_types[typeno] = extty;
-  return 0;
-}
-
-
-/*
  * Read
  */
 
@@ -180,7 +166,7 @@ void lac_print(FILE *fd, lreg_t lr)
       fprintf(fd, "() ");
       break;
     case LREG_SYMBOL:
-      fprintf(fd, "%s ", (char *)LREG_PTR(lr));
+      fprintf(fd, "%s ", (char *)lreg_raw_ptr(lr));
       break;
     case LREG_CONS:
       fprintf(fd, "( ");
@@ -199,9 +185,7 @@ void lac_print(FILE *fd, lreg_t lr)
       fprintf(fd, "<#SFORM> ");
       break;
     default:
-      if ( ext_types[LREG_TYPE(lr)] != NULL )
-	ext_types[LREG_TYPE(lr)]->print(fd, lr);
-      else
+      if ( !extty_print(fd, lr) )
 	fprintf(fd, "<??? %d>",(int)LREG_TYPE(lr));
     }
   return;
@@ -223,7 +207,7 @@ lreg_t intern_symbol(char *s)
   assert(((uintptr_t)s & LREG_TYPE_MASK) == 0);
 
   r = hsearch(e, ENTER);
-  return LREG(LREG_PTR((lreg_t)r->key),LREG_SYMBOL);
+  return lreg_raw(lreg_raw_ptr((lreg_t)r->key),LREG_SYMBOL);
 }
 
 /* Bind a value to a *global* variable. */
@@ -237,12 +221,12 @@ lreg_t cons(lreg_t a, lreg_t d)
   cons_t *c = GC_malloc(sizeof(cons_t));
   c->a = a;
   c->d = d;
-  return LREG(c, LREG_CONS);
+  return lreg_raw(c, LREG_CONS);
 }
 
 lreg_t car(lreg_t lr)
 {
-  cons_t *cons = (cons_t *)LREG_PTR(lr);
+  cons_t *cons = (cons_t *)lreg_raw_ptr(lr);
   assert(is_cons(lr) | (lr == NIL) );
   if ( lr == NIL )
     return NIL;
@@ -251,7 +235,7 @@ lreg_t car(lreg_t lr)
 
 lreg_t cdr(lreg_t lr)
 {
-  cons_t *cons = (cons_t *)LREG_PTR(lr);
+  cons_t *cons = (cons_t *)lreg_raw_ptr(lr);
   assert(is_cons(lr) | (lr == NIL));
   if ( lr == NIL )
     return NIL;
@@ -452,6 +436,7 @@ static lreg_t eval_cons(lreg_t cons, lenv_t *env)
 
 lreg_t eval(lreg_t sexp, lenv_t *env)
 {
+  lreg_t ans = NIL;
   switch (LREG_TYPE(sexp))
     {
     case LREG_NIL:
@@ -461,13 +446,11 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
     case LREG_CONS:
       return eval_cons(sexp, env);
     default:
-      if ( ext_types[LREG_TYPE(sexp)] != NULL )
-	return ext_types[LREG_TYPE(sexp)]->eval(sexp);
-      else
-	lac_error("Undefined Extension Type! This is a serious LAC BUG().", NIL);
+      if ( !extty_eval(sexp, &ans) )
+        lac_error("Undefined Extension Type! This is a serious LAC BUG().", NIL);
         /* Not reached. */
     }
-  return NIL;
+  return ans;
 }
 
 /*
@@ -650,9 +633,8 @@ LAC_API static lreg_t proc_eq(lreg_t args, lenv_t *env)
     {
       /* Special type. We don't use memory tagging but pointer
 	 tagging, so this is a necessary evil. */
-      if ( LREG_TYPE(arg1) == LREG_TYPE(arg2)
-	   && ext_types[LREG_TYPE(arg1)] != NULL )
-	ans = ext_types[LREG_TYPE(arg1)]->eq(arg1, arg2);
+      if ( LREG_TYPE(arg1) == LREG_TYPE(arg2) )
+        extty_eq(arg1, arg2, &ans);
     }
   return ans;
 }
@@ -707,7 +689,7 @@ LAC_API static lreg_t proc_labels(lreg_t args, lenv_t *env)
     _ERROR_AND_RET("Syntax error in labels");
 
   env_pushnew(env, penv);
-  ret = LREG(LREG_PTR(cons(cdr(args), LREG(penv, LREG_NIL))), LREG_LAMBDA);
+  ret = lreg_raw(lreg_raw_ptr(cons(cdr(args), lreg_raw(penv, LREG_NIL))), LREG_LAMBDA);
   env_define(penv, lbl, ret);
   return ret;
 }
@@ -724,7 +706,7 @@ LAC_API static lreg_t proc_lambda(lreg_t args, lenv_t *env)
     _ERROR_AND_RET("Syntax error in lambda");
 
   env_pushnew(env, penv);
-  return LREG(LREG_PTR(cons(args, LREG(penv, LREG_NIL))), LREG_LAMBDA);
+  return lreg_raw(lreg_raw_ptr(cons(args, lreg_raw(penv, LREG_NIL))), LREG_LAMBDA);
 }
 
 /* Special Form */
@@ -739,7 +721,7 @@ LAC_API static lreg_t proc_macro(lreg_t args, lenv_t *env)
     _ERROR_AND_RET("Syntax error in macro");
 
   env_pushnew(env, penv);
-  return LREG(LREG_PTR(cons(args, LREG(penv, LREG_NIL))), LREG_MACRO);
+  return lreg_raw(lreg_raw_ptr(cons(args, lreg_raw(penv, LREG_NIL))), LREG_MACRO);
 }
 
 /* Special Form */
@@ -802,6 +784,7 @@ int lac_read_eval(FILE *, lreg_t *, struct timeval *, struct timeval *);
 LAC_API static lreg_t proc_load(lreg_t args, lenv_t *env)
 {
   int r;
+  char *file;
   lreg_t res;
   _EXPECT_ARGS(args, 1);
   lreg_t arg1 = eval(car(args), env);
@@ -809,7 +792,9 @@ LAC_API static lreg_t proc_load(lreg_t args, lenv_t *env)
   if ( LREG_TYPE(arg1) != LREG_STRING )
     _ERROR_AND_RET("Syntax error in load");
 
-  FILE *fd = fopen((char *)LREG_PTR(arg1), "r");
+  extty_unbox(arg1, &file, sizeof(file));
+
+  FILE *fd = fopen((char *)file, "r");
   if ( fd == NULL )
     _ERROR_AND_RET("Could not open file");
 

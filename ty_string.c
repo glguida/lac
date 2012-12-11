@@ -25,7 +25,10 @@
 
 static void string_print(FILE *fd, lreg_t lr)
 {
-  fprintf(fd, "\"%s\" ", (char *)LREG_PTR(lr));
+
+  char *s;
+  extty_unbox(lr, &s, sizeof(s));
+  fprintf(fd, "\"%s\" ", s);
 }
 
 static lreg_t string_eval(lreg_t lr)
@@ -35,15 +38,19 @@ static lreg_t string_eval(lreg_t lr)
 
 static lreg_t string_eq(lreg_t arg1, lreg_t arg2)
 {
-  if ( arg1 == arg2 )
+  char *s1, *s2;
+  extty_unbox(arg1, &s1, sizeof(s1));
+  extty_unbox(arg1, &s2, sizeof(s2));
+  if ( s1 == s2 )
     return sym_true;
   return sym_false;
 }
 
 static int string_compare(lreg_t arg1, lreg_t arg2)
 {
-  char *s1 = (char *)LREG_PTR(arg1);
-  char *s2 = (char *)LREG_PTR(arg2);
+  char *s1, *s2;
+  extty_unbox(arg1, &s1, sizeof(s1));
+  extty_unbox(arg1, &s2, sizeof(s2));
   return strcmp(s1, s2);
 }
 
@@ -81,7 +88,7 @@ static ext_type_t string_ty = { .print = string_print, .eval = string_eval, .eq 
 
 void string_init(void)
 {
-  ext_type_register(LREG_STRING, &string_ty);
+  extty_register(LREG_STRING, &string_ty);
   bind_symbol(register_symbol("STRINGP"), llproc_to_lreg(LAC_TYPE_PFUNC(string)));
   bind_symbol(register_symbol("STRING-LESSP"), llproc_to_lreg(proc_string_lessp));
   bind_symbol(register_symbol("STRING-GREATERP"), llproc_to_lreg(proc_string_greaterp));

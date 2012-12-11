@@ -43,16 +43,8 @@
  * use the least significant three bits for storing type information
  * (up to seven types). Extended types (types whose id cannot be
  * decoded in three bits) are encoded via the EXTT-type LREG, whose
- * PTR points to a TREG, capable of storing a full pointer and a
+ * PTR points to a TREG, capable of storing a full object and a
  * bigger tag.
- * This is potentially slow, since we will allocate memory with the GC
- * everytime we create a LREG.
- * As an optimization, in x86-64 systems we exploit the fact that
- * every pointer has unused bits from the 48th to the 63th. These
- * 16bits are used to store the full pointer (in the upper 48 bits)
- * and a full 12-bit tag (bits 4 to 16) and the 3 bit tag (0 to
- * 2). Bit 3 is unused to avoid more complicated masks that affect
- * performances.
  */
 
 typedef uintptr_t lreg_t;
@@ -71,69 +63,65 @@ enum
     LREG_LAMBDA,    /* Lambda procedures. */
     LREG_MACRO,     /* Macro procedures. */
     LREG_NIL,       /* NIL */
-    LREG_EXTT,
+    LREG_EXTT,      /* External Type. */
     LREG_STRING,
     LREG_INTEGER,
     /* Not implemented yet */
     LREG_FLOAT,
     LREG_TYPES = 16
   };
-#undef __LAC_X86_64__OPT
+
+typedef struct {
+  void (*print)(FILE *fd, lreg_t lr);
+  lreg_t (*eval)(lreg_t lr);
+  lreg_t (*eq)(lreg_t arg1, lreg_t arg2);
+} ext_type_t;
+
+int extty_register(unsigned typeno, ext_type_t *extty);
+lreg_t extty_box(unsigned typeno, void *ptr, size_t size);
+lreg_t extty_unbox(lreg_t lr, void *ptr, size_t maxsz);
+unsigned extty_get_type(lreg_t lr);
+unsigned extty_get_size(lreg_t lr);
+int extty_print(FILE *fd, lreg_t lr);
+int extty_eq(lreg_t arg1, lreg_t arg2, lreg_t *ans);
+int extty_eval(lreg_t lr, lreg_t *ans);
+
 static inline unsigned lreg_type(lreg_t lr)
 {
-#ifndef __LAC_x86_64__OPT
-  treg_t *tr;
-#endif
-  if ( (lr & LREG_TYPE_MASK) != LREG_EXTT )
-    return lr & LREG_TYPE_MASK;
+  unsigned raw_type = lr & LREG_TYPE_MASK;
+  if ( raw_type != LREG_EXTT )
+    return raw_type;
 
-#ifdef __LAC_x86_64__OPT
-  return (lr >> 4) & 0xfff;
-#else
-  tr = (treg_t *)((uintptr_t)lr & ~LREG_TYPE_MASK);
-  return tr->tag;
-#endif
+  return extty_get_type(lr);
 }
 
-static inline void *lreg_ptr(lreg_t lr)
+static inline lreg_t lreg_raw(void *ptr, unsigned type)
 {
-#ifndef __LAC_x86_64__OPT
-  treg_t *tr;
-#endif
-  if ( (lr & LREG_TYPE_MASK) != LREG_EXTT )
-    return (void *)((uintptr_t)lr & ~LREG_TYPE_MASK);
-
-#ifdef __LAC_x86_64__OPT
-  return (void *)(lr >> 16);
-#else
-  tr = (treg_t *)((uintptr_t)lr & ~LREG_TYPE_MASK);
-  return tr->ptr;
-#endif
+  return (lreg_t)((uintptr_t)ptr & ~LREG_TYPE_MASK) | type;
 }
 
+static inline void *lreg_raw_ptr(lreg_t lr)
+{
+  return (void *)((uintptr_t)lr & ~LREG_TYPE_MASK);
+}
+
+#if 0
 static inline lreg_t lreg(void *ptr, unsigned type)
 {
-#ifndef __LAC_x86_64__OPT
   treg_t *tr;
-#endif
-  if ( type < LREG_EXTT )
-    return (lreg_t)((uintptr_t)ptr & ~LREG_TYPE_MASK) | type;
 
-#ifdef __LAC_x86_64__OPT
-  assert( type == (type & 0xfff) );
-  return (lreg_t)(((uintptr_t)ptr << 16) | (type << 4) | LREG_EXTT);
-#else
+  if ( type < LREG_EXTT )
+    return lreg_raw(ptr, type);
+
   tr = GC_malloc(sizeof(treg_t));
   tr->tag = type;
   tr->ptr = ptr;
   return (lreg_t)(((uintptr_t)tr & ~LREG_TYPE_MASK) | LREG_EXTT);
-#endif
 }
+#endif
 
-#define LREG_PTR(lr) lreg_ptr(lr)
 #define LREG_TYPE(lr) lreg_type(lr)
-#define LREG(ptr, ty) lreg(ptr, ty)
-#define NIL LREG(0,LREG_NIL)
+#define NIL lreg_raw(0,LREG_NIL)
 
 #define HT_SIZE 31
 
@@ -165,7 +153,7 @@ typedef struct cons cons_t;
 static inline cons_t *get_cons(lreg_t lr)
 {
   assert(is_cons(lr));
-  return (cons_t *)LREG_PTR(lr);
+  return (cons_t *)lreg_raw_ptr(lr);
 }
 
 #define is_symbol(lr) (LREG_TYPE(lr) == LREG_SYMBOL)
@@ -193,12 +181,12 @@ typedef lreg_t (*lac_function_t)(lreg_t args, lenv_t *env);
 static inline lac_function_t lreg_to_cfunc(lreg_t lr)
 {
   assert(is_llproc(lr) || is_sform(lr));
-  return (lac_function_t)LREG_PTR(lr);
+  return (lac_function_t)lreg_raw_ptr(lr);
 }
 static inline lreg_t cfunc_to_lreg(lac_function_t llproc, unsigned type)
 {
   assert(((uintptr_t)llproc & LREG_TYPE_MASK) == 0);
-  return LREG(llproc, type);
+  return lreg_raw(llproc, type);
 }
 
 /*
@@ -208,7 +196,7 @@ static inline lreg_t cfunc_to_lreg(lac_function_t llproc, unsigned type)
 #define is_macro(lr) (LREG_TYPE(lr) == LREG_MACRO)
 static inline lreg_t get_closure_proc(lreg_t lr)
 {
-  lreg_t c = LREG(LREG_PTR(lr), LREG_CONS);
+  lreg_t c = lreg_raw(lreg_raw_ptr(lr), LREG_CONS);
   assert((LREG_TYPE(lr) == LREG_LAMBDA)
 	 || (LREG_TYPE(lr) == LREG_MACRO));
   
@@ -216,11 +204,11 @@ static inline lreg_t get_closure_proc(lreg_t lr)
 }
 static inline lenv_t *get_closure_env(lreg_t lr)
 {
-  lreg_t c = LREG(LREG_PTR(lr), LREG_CONS);
+  lreg_t c = lreg_raw(lreg_raw_ptr(lr), LREG_CONS);
   assert((LREG_TYPE(lr) == LREG_LAMBDA)
 	 || (LREG_TYPE(lr) == LREG_MACRO));
 
-  return (lenv_t *)LREG_PTR(cdr(c));
+  return (lenv_t *)lreg_raw_ptr(cdr(c));
 }
 static inline lreg_t get_proc_binds(lreg_t lr)
 {
@@ -238,13 +226,9 @@ extern lreg_t sym_quasiquote;
 extern lreg_t sym_unquote;
 extern lreg_t sym_splice;
 
-typedef struct {
-  void (*print)(FILE *fd, lreg_t lr);
-  lreg_t (*eval)(lreg_t lr);
-  lreg_t (*eq)(lreg_t arg1, lreg_t arg2);
-} ext_type_t;
 
-int ext_type_register(int typeno, ext_type_t *extty);
+
+
 
 void bind_symbol(lreg_t sym, lreg_t val);
 lreg_t register_symbol(const char *s);
@@ -302,6 +286,5 @@ int env_lookup(lenv_t *env, lreg_t key, lreg_t *res);
 int env_define(lenv_t *env, lreg_t key, lreg_t value);
 int env_set(lenv_t *env, lreg_t key, lreg_t value);
 void env_pushnew(lenv_t *env, lenv_t *new);
-
 
 #endif /* LACONIC_H */
