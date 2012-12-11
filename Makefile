@@ -1,11 +1,18 @@
 all: lac lac.debug
 
-MODULES_LEX+= ty_string.l.inc
-MODULES_SRC+= ty_string.c
+#
+# Modules
+#
+# The string type is required by the core (proc_load) and cannot 
+# be removed.
+MODULES_LEX= ty_string.l.inc
+MODULES_SRC= ty_string.c
 
+# C integer (long int) type handling
 MODULES_LEX+= ty_int.l.inc
 MODULES_SRC+= ty_int.c 
 
+# MAPCAR/REDUCE C Implementation
 MODULES_SRC+=map.c
 
 SRCS= sexpr.tab.c laconic.c ext_types.c env.c lexer.yy.c ${MODULES_SRC}

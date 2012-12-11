@@ -22,6 +22,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 #include <gc/gc.h>
 
 #ifdef NO_ASSERT
@@ -64,14 +65,13 @@ enum
     LREG_MACRO,     /* Macro procedures. */
     LREG_NIL,       /* NIL */
     LREG_EXTT,      /* External Type. */
-    LREG_STRING,
-    LREG_INTEGER,
-    /* Not implemented yet */
-    LREG_FLOAT,
-    LREG_TYPES = 16
+    LREG_STRING,    /* String, Fixed External type. */
+    LREG_AVAIL,
+    LREG_TYPES=256
   };
 
 typedef struct {
+  char *name;
   void (*print)(FILE *fd, lreg_t lr);
   lreg_t (*eval)(lreg_t lr);
   lreg_t (*eq)(lreg_t arg1, lreg_t arg2);
@@ -261,8 +261,10 @@ lreg_t apply(lreg_t proc, lreg_t args, lenv_t *env);
     lreg_t tmp = args;							\
     __EXPECT_MIN_ARGS__(args, num);					\
     if ( tmp != NIL )							\
-      _ERROR_AND_RET("Too Many arguments");		\
+      _ERROR_AND_RET("Too Many arguments");				\
   } while ( 0 )
+
+
 
 
 #define LAC_DEFINE_TYPE_PFUNC(typename, typeno)				\
@@ -275,6 +277,7 @@ LAC_API static lreg_t proc_##typename##p (lreg_t args, lenv_t *env)	\
   else									\
     return sym_false;							\
 }
+
 #define LAC_TYPE_PFUNC(typename) proc_##typename##p
 
 void lac_error(char *, lreg_t) _noreturn;

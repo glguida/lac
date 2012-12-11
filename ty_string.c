@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 
+
 static void string_print(FILE *fd, lreg_t lr)
 {
 
@@ -84,7 +85,12 @@ LAC_API static lreg_t proc_string_equal(lreg_t args, lenv_t *env)
 
 LAC_DEFINE_TYPE_PFUNC(string, LREG_STRING)
 
-static ext_type_t string_ty = { .print = string_print, .eval = string_eval, .eq = string_eq };
+static ext_type_t string_ty = {
+	.name = "string",
+	.print = string_print,
+	.eval = string_eval,
+	.eq = string_eq
+};
 
 void string_init(void)
 {

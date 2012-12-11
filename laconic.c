@@ -36,8 +36,6 @@ lenv_t null_env;
 char *lac_errmsg;
 lreg_t lac_errlreg;
 
-
-
 /*
  * System symbols
  */
