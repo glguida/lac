@@ -1,0 +1,8 @@
+- exttype insertable by lexer
+  suggested format: #(type){string}
+  requires:
+    - name to typeno hash
+    - lac_extty_from_string()
+       subprob: should return NIL or LAC_ERROR?
+
+
