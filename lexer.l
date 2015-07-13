@@ -25,8 +25,9 @@
 #include <strings.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <gmp.h>
 #include "laconic.h"
-#include "sexpr.tab.h"
+#include "sexpr.h"
 
 void ints_free(void *obj, void *);
 
@@ -100,5 +101,51 @@ SIGN [+|-]
 ;(.)*
 {WHITESPACE}
 
+
+
+
+
+{SIGN}?{DIGIT}+ { 
+		  errno = 0;
+		  unsigned long n = strtol(yytext, (char **)NULL, 10);
+		  if ( errno == ERANGE )
+			lac_error("Integer overflow in input", NIL);
+		  *lvalp = lac_extty_box(LREG_INTEGER, &n, sizeof(n));
+                  return ATOM;
+}
+
+(#x|0x){HEXDIGIT}+ { 
+		  errno = 0;
+		  unsigned long n = strtol(yytext+2, (char **)NULL, 16);
+		  if ( errno == ERANGE )
+			lac_error("Integer overflow in input", NIL);
+		  *lvalp = lac_extty_box(LREG_INTEGER, &n, sizeof(n));
+                  return ATOM;
+}
+
+
+\"[^\"]*\" {
+	     char *s = GC_MALLOC(strlen(yytext) - 1);
+             memcpy(s, yytext+1, strlen(yytext) - 2);
+             *lvalp = lac_extty_box(LREG_STRING, &s, sizeof(char *));
+             return ATOM;
+}
+
+(({DIGIT}+({SPECIAL}|{ALPHA}))|{ALPHA}|{SP_INIT})({SPECIAL}|{ALPHA}|{DIGIT})* {
+  int i;;
+  char *s = GC_MALLOC(strlen(yytext) + 1);
+  for (i = 0; i < strlen(yytext); i++)
+    *(s+i) = toupper(*(yytext+i));
+  *lvalp = intern_symbol(s);
+  return ATOM;
+
+};
+
+,@ { return COMMA_AT; }
+
+. { return *yytext; }
+
+
+%%
 
 

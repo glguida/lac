@@ -21,9 +21,6 @@
 #include <stdio.h>
 #include <limits.h>
 
-/* Module Type Unique ID.  */
-unsigned typeno_integer = LREG_AVAIL+0;
-
 #define INT_UNBOX(lr, n) lac_extty_unbox(lr, n, sizeof(*n))
 
 /*
@@ -68,7 +65,7 @@ static lac_exttype_t int_ty = {
   lreg_t arg2 = eval(car(cdr(args)), env);		\
 							\
   if ( !(LREG_TYPE(arg1) == LREG_TYPE(arg2))		\
-       || LREG_TYPE(arg1) != typeno_integer )		\
+       || LREG_TYPE(arg1) != LREG_INTEGER )		\
       _ERROR_AND_RET("+ requires two integers");	\
 							\
   lac_extty_unbox(arg1, &a, sizeof(a));			\
@@ -85,7 +82,7 @@ LAC_API static lreg_t proc_plus(lreg_t args, lenv_t *env)
     _ERROR_AND_RET("+: Integer overflow\n");
 
   n = n1 + n2;
-  return lac_extty_box(typeno_integer, &n, sizeof(n));
+  return lac_extty_box(LREG_INTEGER, &n, sizeof(n));
 }
 
 LAC_API static lreg_t proc_minus(lreg_t args, lenv_t *env)
@@ -98,7 +95,7 @@ LAC_API static lreg_t proc_minus(lreg_t args, lenv_t *env)
     _ERROR_AND_RET("-: Integer signed overflow\n");
   
   n = n1 - n2;
-  return lac_extty_box(typeno_integer, &n, sizeof(n));
+  return lac_extty_box(LREG_INTEGER, &n, sizeof(n));
 }
 
 LAC_API static lreg_t proc_star(lreg_t args, lenv_t *env)
@@ -128,7 +125,7 @@ LAC_API static lreg_t proc_star(lreg_t args, lenv_t *env)
 
  mul_res:
   n = n1 * n2;
-  return lac_extty_box(typeno_integer, &n, sizeof(n));
+  return lac_extty_box(LREG_INTEGER, &n, sizeof(n));
 
  mul_of:
   _ERROR_AND_RET("*: Integer sign overflow\n");
@@ -144,7 +141,7 @@ LAC_API static lreg_t proc_mod(lreg_t args, lenv_t *env)
       _ERROR_AND_RET("\%% would overflow or divide by zero\n");
 
   n = n1 % n2;
-  return lac_extty_box(typeno_integer, &n, sizeof(n));
+  return lac_extty_box(LREG_INTEGER, &n, sizeof(n));
 }
 
 LAC_API static lreg_t proc_div(lreg_t args, lenv_t *env)
@@ -156,7 +153,7 @@ LAC_API static lreg_t proc_div(lreg_t args, lenv_t *env)
       _ERROR_AND_RET("\%% would overflow or divide by zero\n");
 
   n = n1 / n2;
-  return lac_extty_box(typeno_integer, &n, sizeof(n));
+  return lac_extty_box(LREG_INTEGER, &n, sizeof(n));
 }
 
 LAC_API static lreg_t proc_greater(lreg_t args, lenv_t *env)
@@ -173,12 +170,12 @@ LAC_API static lreg_t proc_less(lreg_t args, lenv_t *env)
   return n1 < n2 ? sym_true : sym_false;
 }
 
-LAC_DEFINE_TYPE_PFUNC(integer, typeno_integer);
+LAC_DEFINE_TYPE_PFUNC(integer, LREG_INTEGER);
 
 void int_init(void)
 {
-  lac_extty_register(typeno_integer, &int_ty);
-  bind_symbol(register_symbol("INTEGERP"), llproc_to_lreg(LAC_TYPE_PFUNC(integer)));
+  lac_extty_register(LREG_INTEGER, &int_ty);
+  bind_symbol(register_symbol("INTEGERP"),llproc_to_lreg(LAC_TYPE_PFUNC(integer)));
   bind_symbol(register_symbol("+"), llproc_to_lreg(proc_plus));
   bind_symbol(register_symbol("-"), llproc_to_lreg(proc_minus));
   bind_symbol(register_symbol("*"), llproc_to_lreg(proc_star));

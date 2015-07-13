@@ -68,6 +68,7 @@ enum lreg_type
     LREG_EXTT,      /* External Type. */
     /* EXTTYs */
     LREG_STRING,    /* String, Fixed External type. */
+    LREG_INTEGER,   /* Integers, Fixed External type. */
     LREG_AVAIL,
     LREG_TYPES=256
   };

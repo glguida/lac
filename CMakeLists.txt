@@ -7,7 +7,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
 set(laconic_VERSION 0.1)
 
 set(laconic_C_SRCS
- sexpr.tab.c laconic.c ext_types.c env.c lexer.yy.c map.c ty_string.c ty_int.c
+ laconic.c ext_types.c env.c map.c ty_string.c ty_int.c
 )
 
 set(laconic_FILES)
@@ -30,9 +30,19 @@ find_path(SIGSEGV_INCLUDE_DIRS sigsegv.h)
 link_directories(${SIGSEGV_LIBRARY_DIRS})
 include_directories(SIGSEGV_INCLUDE_DIRS)
 
-add_definitions(-DLAC_SYSDIR=\\"${CMAKE_INSTALL_PREFIX}/share/lac\\")
+find_package(BISON)
+find_package(FLEX)
 
-add_executable(laconic ${laconic_C_SRCS})
+FLEX_TARGET(scanner lexer.l ${CMAKE_CURRENT_BINARY_DIR}/lexer.c)
+BISON_TARGET(parser sexpr.y ${CMAKE_CURRENT_BINARY_DIR}/sexpr.c)
+ADD_FLEX_BISON_DEPENDENCY(scanner parser)
+
+add_definitions(-DLAC_SYSDIR=\\"${CMAKE_INSTALL_PREFIX}/share/lac\\")
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BIN_DIR})
+
+add_executable(laconic ${laconic_C_SRCS}
+                       ${BISON_parser_OUTPUTS}
+                       ${FLEX_scanner_OUTPUTS})
 target_link_libraries(laconic sigsegv gc readline curses)
 set_target_properties(laconic PROPERTIES
 	LINKER_LANGUAGE C
