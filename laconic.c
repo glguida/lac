@@ -18,6 +18,7 @@
 */
 
 #define _GNU_SOURCE
+#define _LAC_INTERNAL
 #include <stdio.h>
 #include <search.h>
 #include <string.h>
@@ -183,7 +184,7 @@ void lac_print(FILE *fd, lreg_t lr)
       fprintf(fd, "<#SFORM> ");
       break;
     default:
-      if ( !extty_print(fd, lr) )
+      if ( !lacint_extty_print(fd, lr) )
 	fprintf(fd, "<??? %d>",(int)LREG_TYPE(lr));
     }
   return;
@@ -444,7 +445,7 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
     case LREG_CONS:
       return eval_cons(sexp, env);
     default:
-      if ( !extty_eval(sexp, &ans) )
+      if ( !lacint_extty_eval(sexp, &ans) )
         lac_error("Undefined Extension Type! This is a serious LAC BUG().", NIL);
         /* Not reached. */
     }
@@ -632,7 +633,7 @@ LAC_API static lreg_t proc_eq(lreg_t args, lenv_t *env)
       /* Special type. We don't use memory tagging but pointer
 	 tagging, so this is a necessary evil. */
       if ( LREG_TYPE(arg1) == LREG_TYPE(arg2) )
-        extty_eq(arg1, arg2, &ans);
+        lacint_extty_eq(arg1, arg2, &ans);
     }
   return ans;
 }
@@ -790,7 +791,7 @@ LAC_API static lreg_t proc_load(lreg_t args, lenv_t *env)
   if ( LREG_TYPE(arg1) != LREG_STRING )
     _ERROR_AND_RET("Syntax error in load");
 
-  extty_unbox(arg1, &file, sizeof(file));
+  lac_extty_unbox(arg1, &file, sizeof(file));
 
   FILE *fd = fopen((char *)file, "r");
   if ( fd == NULL )

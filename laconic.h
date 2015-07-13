@@ -37,8 +37,16 @@
 #define _noreturn
 #endif
 
+
 /*
- * LREG/TREG model.
+ * Basic Types.
+ */
+
+typedef uintptr_t lreg_t;
+
+
+/*
+ * LREG/Type model.
  *
  * We require GC-allocated memory to be 8-byte aligned, so that we can
  * use the least significant three bits for storing type information
@@ -48,14 +56,7 @@
  * bigger tag.
  */
 
-typedef uintptr_t lreg_t;
-typedef struct {
-  unsigned tag;
-  void *ptr;
-} treg_t;
-
-#define LREG_TYPE_MASK 0x7
-enum 
+enum lreg_type
   {
     LREG_CONS = 0,  /* Cons cells */
     LREG_SYMBOL,    /* Symbols */
@@ -65,26 +66,35 @@ enum
     LREG_MACRO,     /* Macro procedures. */
     LREG_NIL,       /* NIL */
     LREG_EXTT,      /* External Type. */
+    /* EXTTYs */
     LREG_STRING,    /* String, Fixed External type. */
     LREG_AVAIL,
     LREG_TYPES=256
   };
+#define LREG_TYPE_MASK 0x7
 
+
+/*
+ * EXTTY handling.
+ */
 typedef struct {
   char *name;
   void (*print)(FILE *fd, lreg_t lr);
   lreg_t (*eval)(lreg_t lr);
   lreg_t (*eq)(lreg_t arg1, lreg_t arg2);
-} ext_type_t;
+} lac_exttype_t;
 
-int extty_register(unsigned typeno, ext_type_t *extty);
-lreg_t extty_box(unsigned typeno, void *ptr, size_t size);
-size_t extty_unbox(lreg_t lr, void *ptr, size_t maxsz);
-unsigned extty_get_type(lreg_t lr);
-size_t extty_get_size(lreg_t lr);
-int extty_print(FILE *fd, lreg_t lr);
-int extty_eq(lreg_t arg1, lreg_t arg2, lreg_t *ans);
-int extty_eval(lreg_t lr, lreg_t *ans);
+int lac_extty_register(unsigned typeno, lac_exttype_t *extty);
+lreg_t lac_extty_box(unsigned typeno, void *ptr, size_t size);
+size_t lac_extty_unbox(lreg_t lr, void *ptr, size_t maxsz);
+unsigned lac_extty_get_type(lreg_t lr);
+size_t lac_extty_get_size(lreg_t lr);
+
+#ifdef _LAC_INTERNAL
+int lacint_extty_print(FILE *fd, lreg_t lr);
+int lacint_extty_eq(lreg_t arg1, lreg_t arg2, lreg_t *ans);
+int lacin_extty_eval(lreg_t lr, lreg_t *ans);
+#endif
 
 static inline unsigned lreg_type(lreg_t lr)
 {
@@ -92,7 +102,7 @@ static inline unsigned lreg_type(lreg_t lr)
   if ( raw_type != LREG_EXTT )
     return raw_type;
 
-  return extty_get_type(lr);
+  return lac_extty_get_type(lr);
 }
 
 static inline lreg_t lreg_raw(void *ptr, unsigned type)

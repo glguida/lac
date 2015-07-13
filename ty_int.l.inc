@@ -6,7 +6,7 @@
 		  unsigned long n = strtol(yytext, (char **)NULL, 10);
 		  if ( errno == ERANGE )
 			lac_error("Integer overflow in input", NIL);
-		  *lvalp = extty_box(typeno_integer, &n, sizeof(n));
+		  *lvalp = lac_extty_box(typeno_integer, &n, sizeof(n));
                   return ATOM;
 }
 
@@ -16,7 +16,7 @@
 		  unsigned long n = strtol(yytext+2, (char **)NULL, 16);
 		  if ( errno == ERANGE )
 			lac_error("Integer overflow in input", NIL);
-		  *lvalp = extty_box(typeno_integer, &n, sizeof(n));
+		  *lvalp = lac_extty_box(typeno_integer, &n, sizeof(n));
                   return ATOM;
 }
 

@@ -24,7 +24,7 @@
 /* Module Type Unique ID.  */
 unsigned typeno_integer = LREG_AVAIL+0;
 
-#define INT_UNBOX(lr, n) extty_unbox(lr, n, sizeof(*n))
+#define INT_UNBOX(lr, n) lac_extty_unbox(lr, n, sizeof(*n))
 
 /*
   LAC Type Interface.
@@ -50,7 +50,7 @@ static lreg_t int_eq(lreg_t arg1, lreg_t arg2)
   return (n1 == n2) ? sym_true : sym_false;
 }
 
-static ext_type_t int_ty = { 
+static lac_exttype_t int_ty = { 
 	.name = "integer",
 	.print = int_print,
 	.eval = int_eval,
@@ -71,8 +71,8 @@ static ext_type_t int_ty = {
        || LREG_TYPE(arg1) != typeno_integer )		\
       _ERROR_AND_RET("+ requires two integers");	\
 							\
-  extty_unbox(arg1, &a, sizeof(a));			\
-  extty_unbox(arg2, &b, sizeof(b));
+  lac_extty_unbox(arg1, &a, sizeof(a));			\
+  lac_extty_unbox(arg2, &b, sizeof(b));
 
 
 LAC_API static lreg_t proc_plus(lreg_t args, lenv_t *env)
@@ -85,7 +85,7 @@ LAC_API static lreg_t proc_plus(lreg_t args, lenv_t *env)
     _ERROR_AND_RET("+: Integer overflow\n");
 
   n = n1 + n2;
-  return extty_box(typeno_integer, &n, sizeof(n));
+  return lac_extty_box(typeno_integer, &n, sizeof(n));
 }
 
 LAC_API static lreg_t proc_minus(lreg_t args, lenv_t *env)
@@ -98,7 +98,7 @@ LAC_API static lreg_t proc_minus(lreg_t args, lenv_t *env)
     _ERROR_AND_RET("-: Integer signed overflow\n");
   
   n = n1 - n2;
-  return extty_box(typeno_integer, &n, sizeof(n));
+  return lac_extty_box(typeno_integer, &n, sizeof(n));
 }
 
 LAC_API static lreg_t proc_star(lreg_t args, lenv_t *env)
@@ -128,7 +128,7 @@ LAC_API static lreg_t proc_star(lreg_t args, lenv_t *env)
 
  mul_res:
   n = n1 * n2;
-  return extty_box(typeno_integer, &n, sizeof(n));
+  return lac_extty_box(typeno_integer, &n, sizeof(n));
 
  mul_of:
   _ERROR_AND_RET("*: Integer sign overflow\n");
@@ -144,7 +144,7 @@ LAC_API static lreg_t proc_mod(lreg_t args, lenv_t *env)
       _ERROR_AND_RET("\%% would overflow or divide by zero\n");
 
   n = n1 % n2;
-  return extty_box(typeno_integer, &n, sizeof(n));
+  return lac_extty_box(typeno_integer, &n, sizeof(n));
 }
 
 LAC_API static lreg_t proc_div(lreg_t args, lenv_t *env)
@@ -156,7 +156,7 @@ LAC_API static lreg_t proc_div(lreg_t args, lenv_t *env)
       _ERROR_AND_RET("\%% would overflow or divide by zero\n");
 
   n = n1 / n2;
-  return extty_box(typeno_integer, &n, sizeof(n));
+  return lac_extty_box(typeno_integer, &n, sizeof(n));
 }
 
 LAC_API static lreg_t proc_greater(lreg_t args, lenv_t *env)
@@ -177,7 +177,7 @@ LAC_DEFINE_TYPE_PFUNC(integer, typeno_integer);
 
 void int_init(void)
 {
-  extty_register(typeno_integer, &int_ty);
+  lac_extty_register(typeno_integer, &int_ty);
   bind_symbol(register_symbol("INTEGERP"), llproc_to_lreg(LAC_TYPE_PFUNC(integer)));
   bind_symbol(register_symbol("+"), llproc_to_lreg(proc_plus));
   bind_symbol(register_symbol("-"), llproc_to_lreg(proc_minus));

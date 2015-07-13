@@ -28,7 +28,7 @@ static void string_print(FILE *fd, lreg_t lr)
 {
 
   char *s;
-  extty_unbox(lr, &s, sizeof(s));
+  lac_extty_unbox(lr, &s, sizeof(s));
   fprintf(fd, "\"%s\" ", s);
 }
 
@@ -40,8 +40,8 @@ static lreg_t string_eval(lreg_t lr)
 static lreg_t string_eq(lreg_t arg1, lreg_t arg2)
 {
   char *s1, *s2;
-  extty_unbox(arg1, &s1, sizeof(s1));
-  extty_unbox(arg1, &s2, sizeof(s2));
+  lac_extty_unbox(arg1, &s1, sizeof(s1));
+  lac_extty_unbox(arg1, &s2, sizeof(s2));
   if ( s1 == s2 )
     return sym_true;
   return sym_false;
@@ -50,8 +50,8 @@ static lreg_t string_eq(lreg_t arg1, lreg_t arg2)
 static int string_compare(lreg_t arg1, lreg_t arg2)
 {
   char *s1, *s2;
-  extty_unbox(arg1, &s1, sizeof(s1));
-  extty_unbox(arg1, &s2, sizeof(s2));
+  lac_extty_unbox(arg1, &s1, sizeof(s1));
+  lac_extty_unbox(arg1, &s2, sizeof(s2));
   return strcmp(s1, s2);
 }
 
@@ -85,7 +85,7 @@ LAC_API static lreg_t proc_string_equal(lreg_t args, lenv_t *env)
 
 LAC_DEFINE_TYPE_PFUNC(string, LREG_STRING)
 
-static ext_type_t string_ty = {
+static lac_exttype_t string_ty = {
 	.name = "string",
 	.print = string_print,
 	.eval = string_eval,
@@ -94,7 +94,7 @@ static ext_type_t string_ty = {
 
 void string_init(void)
 {
-  extty_register(LREG_STRING, &string_ty);
+  lac_extty_register(LREG_STRING, &string_ty);
   bind_symbol(register_symbol("STRINGP"), llproc_to_lreg(LAC_TYPE_PFUNC(string)));
   bind_symbol(register_symbol("STRING-LESSP"), llproc_to_lreg(proc_string_lessp));
   bind_symbol(register_symbol("STRING-GREATERP"), llproc_to_lreg(proc_string_greaterp));
