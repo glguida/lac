@@ -894,6 +894,8 @@ static void library_init(void)
   lreg_t res;
   FILE *fd = fopen("sys.lac", "r");
   if ( fd == NULL )
+    fd = fopen(LAC_SYSDIR"/sys.lac", "r");
+  if ( fd == NULL )
     lac_error("SYSTEM LIBRARY NOT FOUND", NIL);
 
   while((r = lac_read_eval(fd, &res, NULL, NULL)) > 0);

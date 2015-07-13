@@ -119,4 +119,3 @@
     (t                             (eq x y))))
        
 
-(load "examples.lac")

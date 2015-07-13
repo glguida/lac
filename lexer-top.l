@@ -25,7 +25,6 @@
 #include <strings.h>
 #include <readline/readline.h>
 #include <readline/history.h>
-#include <gmp.h>
 #include "laconic.h"
 #include "sexpr.tab.h"
 

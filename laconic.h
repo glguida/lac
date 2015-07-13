@@ -79,9 +79,9 @@ typedef struct {
 
 int extty_register(unsigned typeno, ext_type_t *extty);
 lreg_t extty_box(unsigned typeno, void *ptr, size_t size);
-lreg_t extty_unbox(lreg_t lr, void *ptr, size_t maxsz);
+size_t extty_unbox(lreg_t lr, void *ptr, size_t maxsz);
 unsigned extty_get_type(lreg_t lr);
-unsigned extty_get_size(lreg_t lr);
+size_t extty_get_size(lreg_t lr);
 int extty_print(FILE *fd, lreg_t lr);
 int extty_eq(lreg_t arg1, lreg_t arg2, lreg_t *ans);
 int extty_eval(lreg_t lr, lreg_t *ans);
@@ -219,23 +219,22 @@ static inline lreg_t get_proc_evlist(lreg_t lr)
   return cdr(lr);
 }    
 
+/*
+ * System symbols
+ */
 extern lreg_t sym_true;
 extern lreg_t sym_false;
 extern lreg_t sym_quote;
 extern lreg_t sym_quasiquote;
 extern lreg_t sym_unquote;
 extern lreg_t sym_splice;
-
-
-
-
+extern lreg_t sym_rest;
 
 void bind_symbol(lreg_t sym, lreg_t val);
 lreg_t register_symbol(const char *s);
 lreg_t evargs(lreg_t list, lenv_t *env);
 lreg_t eval(lreg_t list, lenv_t *env);
 lreg_t apply(lreg_t proc, lreg_t args, lenv_t *env);
-
 
 #define _ERROR_AND_RET(err)	\
   do {				\
