@@ -1,4 +1,5 @@
 project(laconic)
+cmake_minimum_required(VERSION 2.8)
 
 set(CMAKE_C_FLAGS_DEBUG "-g -Wall -O0 -fno-inline ${CMAKE_C_FLAGS_DEBUG}")
 set(CMAKE_C_FLAGS_RELEASE "-Wall -O3 ${CMAKE_C_FLAGS_RELEASE}")
@@ -40,7 +41,7 @@ ADD_FLEX_BISON_DEPENDENCY(scanner parser)
 SET_PROPERTY(SOURCE ${CMAKE_CURRENT_BINARY_DIR}/lexer.c
              PROPERTY COMPILE_FLAGS -Wno-unused-function)
 
-add_definitions(-DLAC_SYSDIR=\\"${CMAKE_INSTALL_PREFIX}/share/lac\\")
+add_definitions(-DLAC_SYSDIR="${CMAKE_INSTALL_PREFIX}/share/lac")
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BIN_DIR})
 
 add_executable(laconic ${laconic_C_SRCS}
