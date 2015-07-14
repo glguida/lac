@@ -1,7 +1,7 @@
 project(laconic)
 
 set(CMAKE_C_FLAGS_DEBUG "-g -Wall -O0 -fno-inline ${CMAKE_C_FLAGS_DEBUG}")
-set(MAKE_C_FLAGS_RELEASE "-Wall -O3 ${CMAKE_C_FLAGS_RELEASE}")
+set(CMAKE_C_FLAGS_RELEASE "-Wall -O3 ${CMAKE_C_FLAGS_RELEASE}")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
 
 set(laconic_VERSION 0.1)
@@ -33,8 +33,9 @@ include_directories(SIGSEGV_INCLUDE_DIRS)
 find_package(BISON)
 find_package(FLEX)
 
-FLEX_TARGET(scanner lexer.l ${CMAKE_CURRENT_BINARY_DIR}/lexer.c)
-BISON_TARGET(parser sexpr.y ${CMAKE_CURRENT_BINARY_DIR}/sexpr.c)
+FLEX_TARGET(scanner lexer.l ${CMAKE_CURRENT_BINARY_DIR}/lexer.c
+            COMPILE_FLAGS "--header-file=lexer.h")
+BISON_TARGET(parser parser.y ${CMAKE_CURRENT_BINARY_DIR}/parser.c)
 ADD_FLEX_BISON_DEPENDENCY(scanner parser)
 
 add_definitions(-DLAC_SYSDIR=\\"${CMAKE_INSTALL_PREFIX}/share/lac\\")

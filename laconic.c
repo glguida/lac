@@ -98,7 +98,7 @@ static void stackovf_handler()
  * Read
  */
 
-#include "lexer.yy.h"
+#include "lexer.h"
 extern int yyparse(lreg_t *);
 
 int lac_read(FILE *fd, lreg_t *res)

@@ -27,7 +27,7 @@
 #include <readline/history.h>
 #include <gmp.h>
 #include "laconic.h"
-#include "sexpr.h"
+#include "parser.h"
 
 void ints_free(void *obj, void *);
 
@@ -132,10 +132,10 @@ SIGN [+|-]
 }
 
 (({DIGIT}+({SPECIAL}|{ALPHA}))|{ALPHA}|{SP_INIT})({SPECIAL}|{ALPHA}|{DIGIT})* {
-  int i;;
+  int i;
   char *s = GC_MALLOC(strlen(yytext) + 1);
   for (i = 0; i < strlen(yytext); i++)
-    *(s+i) = toupper(*(yytext+i));
+    *(s+i) = toupper((int)*(yytext+i));
   *lvalp = intern_symbol(s);
   return ATOM;
 

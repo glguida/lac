@@ -94,7 +94,7 @@ size_t lac_extty_get_size(lreg_t lr);
 #ifdef _LAC_INTERNAL
 int lacint_extty_print(FILE *fd, lreg_t lr);
 int lacint_extty_eq(lreg_t arg1, lreg_t arg2, lreg_t *ans);
-int lacin_extty_eval(lreg_t lr, lreg_t *ans);
+int lacint_extty_eval(lreg_t lr, lreg_t *ans);
 #endif
 
 static inline unsigned lreg_type(lreg_t lr)
