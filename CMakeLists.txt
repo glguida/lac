@@ -37,6 +37,8 @@ FLEX_TARGET(scanner lexer.l ${CMAKE_CURRENT_BINARY_DIR}/lexer.c
             COMPILE_FLAGS "--header-file=lexer.h")
 BISON_TARGET(parser parser.y ${CMAKE_CURRENT_BINARY_DIR}/parser.c)
 ADD_FLEX_BISON_DEPENDENCY(scanner parser)
+SET_PROPERTY(SOURCE ${CMAKE_CURRENT_BINARY_DIR}/lexer.c
+             PROPERTY COMPILE_FLAGS -Wno-unused-function)
 
 add_definitions(-DLAC_SYSDIR=\\"${CMAKE_INSTALL_PREFIX}/share/lac\\")
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BIN_DIR})
