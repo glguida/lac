@@ -37,7 +37,6 @@
 #define _noreturn
 #endif
 
-
 /*
  * Basic Types.
  */
@@ -166,24 +165,24 @@ struct cons
 };
 typedef struct cons cons_t;
 
+void lac_error(char *, lreg_t) _noreturn;
+
+lreg_t cons(lreg_t a, lreg_t b);
+lreg_t intern_symbol(char *s);
 #define is_cons(lr) (LREG_TYPE(lr) == LREG_CONS)
+#define is_symbol(lr) (LREG_TYPE(lr) == LREG_SYMBOL)
+#define car(_lr) (get_cons(_lr)->a)
+#define cdr(_lr) (get_cons(_lr)->d)
+#define rplaca(_lr, _a) do { get_cons(_lr)->a = (_a); } while(0)
+#define rplacd(_lr, _d) do { get_cons(_lr)->d = (_d); } while(0)
+
 static inline cons_t *get_cons(lreg_t lr)
 {
   if (lreg_raw_type(lr) == LREG_CONS)
     return (cons_t *)lreg_raw_ptr(lr);
   lac_error("not a cons", lr);
-
 }
 
-#define is_symbol(lr) (LREG_TYPE(lr) == LREG_SYMBOL)
-
-lreg_t cons(lreg_t a, lreg_t b);
-lreg_t intern_symbol(char *s);
-
-#define car(_lr) (get_cons(_lr)->a)
-#define cdr(_lr) (get_cons(_lr)->d)
-#define rplaca(_lr, _a) do { get_cons(_lr)->a = (_a); } while(0)
-#define rplacd(_lr, _d) do { get_cons(_lr)->d = (_d); } while(0)
 
 
 /*
@@ -297,7 +296,7 @@ LAC_API static lreg_t proc_##typename##p (lreg_t args, lenv_t *env)	\
 
 #define LAC_TYPE_PFUNC(typename) proc_##typename##p
 
-void lac_error(char *, lreg_t) _noreturn;
+
 /*
  * Environment management.
  */
