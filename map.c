@@ -40,11 +40,11 @@ static lreg_t map_args(lreg_t lists)
         outargs = tail = cons(cons(sym_quote, cons(car(car(args)), NIL)), NIL);
       } else {
 	lreg_t tmp = cons(cons(sym_quote, cons(car(car(args)), NIL)), NIL);
-        get_cons(tail)->d = tmp;
+        rplacd(tail, tmp);
         tail = tmp;
       }
 
-      get_cons(args)->a = cdr(car(args));
+      rplaca(args, cdr(car(args)));
     }
 
   return outargs;
@@ -65,7 +65,6 @@ LAC_API static lreg_t proc_mapcar(lreg_t args, lenv_t *env)
     case LREG_LAMBDA:
     case LREG_MACRO:
     case LREG_LLPROC:
-    case LREG_SFORM:
       break;
     default:
       _ERROR_AND_RET("Syntax error in mapcar");
@@ -84,7 +83,7 @@ LAC_API static lreg_t proc_mapcar(lreg_t args, lenv_t *env)
         outlist = tail = cons(outelm, NIL);
       } else {
         lreg_t tmp = cons(outelm, NIL);
-        get_cons(tail)->d = tmp;
+        rplacd(tail, tmp);
         tail = tmp;
       }
     }

@@ -13,23 +13,24 @@ static unsigned ht_hashf(lreg_t key)
 
 static int _ht_findptr(struct ht_entry *hte, lreg_t key, struct ht_entry **e)
 {
-  if ( hte == NULL )
-    return 1;
+  int i = 0;
+  struct ht_entry *ptr;
 
-  if ( hte->key == key )
-    {
-      *e = hte;
-      return 0;
-    }
-
-  return _ht_findptr(hte->next, key, e);
+  for (ptr = hte; ptr != NULL; ptr = ptr->next) {
+    i++;
+    if ( ptr->key == key )
+      {
+        *e = ptr;
+        return 0;
+      }
+  }
+  return 1;
 }
 
 /* Ret values: < 0 => error, 0 => found, 1 not found */
 static int ht_findptr(ht_t *ht, lreg_t key, struct ht_entry **e)
 {
   unsigned n = ht_hashf(key);
-  assert(n < HT_SIZE);
   return _ht_findptr(ht->table[n], key, e);
 }
 
@@ -68,9 +69,19 @@ static int ht_insert(ht_t *ht, lreg_t key, lreg_t value)
  */
 
 /* Ret values: < 0 => error, 0 => found, 1 not found */
-int env_lookup(lenv_t *env, lreg_t key, lreg_t *res)
+lreg_t env_lookup(lenv_t *env, lreg_t key)
 {
-  return ht_find(&env->htable, key, res);
+  int r;
+  lreg_t res;
+
+  r = ht_find(&env->htable, key, &res);
+  if (r == 1) {
+    lac_error("Symbol not found", key);
+  }
+  if (r) {
+    lac_error("Internal error", key);
+  }
+  return res;
 }
 
 int env_define(lenv_t *env, lreg_t key, lreg_t value)

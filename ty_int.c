@@ -163,11 +163,25 @@ LAC_API static lreg_t proc_greater(lreg_t args, lenv_t *env)
   return n1 > n2 ? sym_true : sym_false;
 }
 
+LAC_API static lreg_t proc_greatereq(lreg_t args, lenv_t *env)
+{
+  long n1, n2;
+  _BINOP_CHECKS(n1, n2);
+  return n1 >= n2 ? sym_true : sym_false;
+}
+
 LAC_API static lreg_t proc_less(lreg_t args, lenv_t *env)
 {
   long n1, n2;
   _BINOP_CHECKS(n1, n2);
   return n1 < n2 ? sym_true : sym_false;
+}
+
+LAC_API static lreg_t proc_lesseq(lreg_t args, lenv_t *env)
+{
+  long n1, n2;
+  _BINOP_CHECKS(n1, n2);
+  return n1 <= n2 ? sym_true : sym_false;
 }
 
 LAC_DEFINE_TYPE_PFUNC(integer, LREG_INTEGER);
@@ -182,5 +196,7 @@ void int_init(void)
   bind_symbol(register_symbol("%"), llproc_to_lreg(proc_mod));
   bind_symbol(register_symbol("/"), llproc_to_lreg(proc_div));
   bind_symbol(register_symbol(">"), llproc_to_lreg(proc_greater));
+  bind_symbol(register_symbol(">="), llproc_to_lreg(proc_greatereq));
   bind_symbol(register_symbol("<"), llproc_to_lreg(proc_less));
+  bind_symbol(register_symbol("<="), llproc_to_lreg(proc_lesseq));
 }

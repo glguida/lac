@@ -1,11 +1,6 @@
 #include "laconic.h"
 #include <string.h>
 
-struct treg_hdr {
-	unsigned type;
-	size_t   size;
-};
-
 /*
  * External type handling.
  */

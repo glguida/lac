@@ -134,7 +134,6 @@ int lac_read(FILE *fd, lreg_t *res)
  * Print
  */
 
-
 void lac_print_cons(FILE *fd, lreg_t lr)
 {
   lreg_t a = car(lr);
@@ -147,7 +146,7 @@ void lac_print_cons(FILE *fd, lreg_t lr)
       return;
     }
 
-  if (LREG_TYPE(d) == LREG_CONS)
+  if (lreg_raw_type(d) == LREG_CONS)
     lac_print_cons(fd, d);
   else
     {
@@ -179,9 +178,6 @@ void lac_print(FILE *fd, lreg_t lr)
       break;
     case LREG_LLPROC:
       fprintf(fd, "<#LLPROC> ");
-      break;
-    case LREG_SFORM:
-      fprintf(fd, "<#SFORM> ");
       break;
     default:
       if ( !lacint_extty_print(fd, lr) )
@@ -222,24 +218,29 @@ lreg_t cons(lreg_t a, lreg_t d)
   c->d = d;
   return lreg_raw(c, LREG_CONS);
 }
-
+#if 0
 lreg_t car(lreg_t lr)
 {
-  cons_t *cons = (cons_t *)lreg_raw_ptr(lr);
-  assert(is_cons(lr) | (lr == NIL) );
-  if ( lr == NIL )
+  if (lr == NIL)
     return NIL;
-  return cons->a;
+  if (lreg_raw_type(lr) == LREG_CONS)
+    return ((cons_t *)lreg_raw_ptr(lr))->a;
+
+  lac_error("Not a cons cell", lr);
+  return NIL;
 }
 
 lreg_t cdr(lreg_t lr)
 {
-  cons_t *cons = (cons_t *)lreg_raw_ptr(lr);
-  assert(is_cons(lr) | (lr == NIL));
-  if ( lr == NIL )
+  if (lr == NIL)
     return NIL;
-  return cons->d;
+  if (lreg_raw_type(lr) == LREG_CONS)
+    return ((cons_t *)lreg_raw_ptr(lr))->d;
+
+  lac_error("Not a cons cell", lr);
+  return NIL;
 }
+#endif
 
 /* Ret values: < 0 => error, 0 => found, 1 not found */
 int assq(lreg_t key, lreg_t alist, lreg_t *res)
@@ -287,166 +288,101 @@ lreg_t evlist(lreg_t list, lenv_t *env)
 
 lreg_t evargs(lreg_t list, lenv_t *env)
 {
-  if ( list == NIL )
-    return NIL;
+  lreg_t tmp, head=NIL, tail=NIL;
 
-  if (!is_cons(list))
+  while (is_cons(list)) {
+    tmp = cons(eval(car(list), env), NIL);
+    if (head != NIL) {
+      rplacd(tail, tmp);
+      tail = cdr(tail);
+    } else {
+      head = tmp;
+      tail = head;
+    }
+    list = cdr(list);
+  }
+
+  if (list != NIL)
     {
       lac_error("evargs: invalid arguments", list);
-      /* Not reached. */
+      head = NIL;
     }
-  return cons(eval(car(list), env), evargs(cdr(list), env));
+  return head;
 }
 
-void evbind(lreg_t binds, lreg_t args, lenv_t *defenv, lenv_t *evenv)
+static lreg_t apply2(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env)
 {
-  lreg_t evd;
-  for ( ; binds != NIL; binds = cdr(binds), args = cdr(args) )
-    {
-      if ( !is_cons(binds) )
-	{
-	  lac_error("Incorrect binding list", binds);
-          /* Not reached. */
-	}
-      if ( car(binds) == sym_rest )
-	{
-          evd = args;
-	  if ( !is_cons(cdr(binds)) )
-	    {
-	      lac_error("Expected binding after &rest", cdr(binds));
-              /* Not reached. */
-	    }
-          if ( evenv != NULL )
-            evd = evargs(args, evenv);
-	  env_define(defenv, car(cdr(binds)), evd);
-	  args = NIL;
-	  if ( cdr(cdr(binds)) != NIL )
-	    {
-	      lac_error("Syntax error in bindings", cdr(cdr(binds)));
-              /* Not reached. */
-	    }
-	  break;
-	}
-      if ( args == NIL )
-	{
-	  lac_error("Not enough arguments to function.", NIL);
-          /* Not reached. */
-	}
-      evd = car(args);
-      if ( evenv != NULL )
-        evd = eval(car(args), evenv);
-      env_define(defenv, car(binds), evd);
+  lenv_t lenv;
+  lreg_t ret, lproc, binds, body, arg;
+  unsigned type = lreg_raw_type(proc);
+
+  if (type == LREG_LLPROC)
+    return lreg_to_llproc(proc)(args, env);
+  if (type != LREG_MACRO && type != LREG_LAMBDA) {
+    lac_error("not a procedure", proc);
+    return NIL;
+  }
+
+  if (type == LREG_MACRO)
+    argenv = NULL;
+
+  env_pushnew(get_closure_env(proc), &lenv);
+
+  lproc = get_closure_proc(proc);
+  binds = get_proc_binds(lproc);
+  body = get_proc_body(lproc);
+  for ( ; binds != NIL; binds = cdr(binds), args = cdr(args) ) {
+    if (car(binds) == sym_rest) {
+      binds = cdr(binds);
+      if (!is_cons(binds))
+	lac_error("Expected binding after &rest", NIL);
+      if (cdr(binds) != NIL)
+	lac_error("Expected &rest to be last parameter", cdr(binds));
+      arg = args;
+      if (argenv)
+	arg = evargs(arg, argenv);
+    } else {
+      arg = car(args);
+      if (argenv)
+	arg = eval(arg, env);
     }
 
-  if ( args != NIL )
-    {
-      lac_error("Too many arguments to function.", args);
-      /* Not reached. */
-    }
-}
+    env_define(&lenv, car(binds), arg);
+  }
 
-static lreg_t _apply(lreg_t proc, lreg_t evd, lenv_t *env, int doeval)
-{
-  lreg_t ret;
-  switch ( LREG_TYPE(proc) )
-    {
-    case LREG_LLPROC:
-    case LREG_SFORM:
-      ret = lreg_to_llproc(proc)(evd, env);
-      break;
-    case LREG_LAMBDA:
-      {
-	lenv_t lenv;
-	lreg_t lproc = get_closure_proc(proc);
-	env_pushnew(get_closure_env(proc), &lenv);
-	evbind(get_proc_binds(lproc), evd, &lenv, doeval ? env : NULL);
-	ret = evlist(get_proc_evlist(lproc), &lenv);
-      }
-      break;
-    case LREG_MACRO:
-      {
-	lenv_t lenv;
-	lreg_t unevald;
-	lreg_t lproc = get_closure_proc(proc);
+  ret = evlist(body, &lenv);
 
-	/*
-	 * Macro expand
-	 */
-	env_pushnew(get_closure_env(proc), &lenv);
-	evbind(get_proc_binds(lproc), evd, &lenv, doeval ? env : NULL);
-	unevald = evlist(get_proc_evlist(lproc), &lenv);
+  if (type == LREG_MACRO) {
+    /* Macro expand hook? */
+    ret = eval(ret, env);
+  }
 
-	/*
-	 * Macro expand hook?
-	 */
-	ret = eval(unevald, env);
-      }
-      break;
-    default:
-      lac_error("Not a procedure", proc);
-      /* Not reached. */
-      break;
-    }
   return ret;
 }
 
 lreg_t apply(lreg_t proc, lreg_t args, lenv_t *env)
 {
-  int doeval = 0;
-  switch ( LREG_TYPE(proc) )
-    {
-    case LREG_LLPROC:
-    case LREG_LAMBDA:
-      doeval = 1;
-      break;
-    case LREG_SFORM:
-    case LREG_MACRO:
-      break;
-    default:
-      lac_error("Not a procedure", proc);
-    }
-  return _apply(proc, args, env, doeval);
-}
-
-static lreg_t eval_sym(lreg_t sym, lenv_t *env)
-{
-  int r;
-  lreg_t ret;
-  if (!is_symbol(sym))
-    {
-      lac_error("Not a symbol", sym);
-      /* Not reached. */
-    }
-
-  r = env_lookup(env, sym, &ret);
-  if (r != 0)
-    {
-      if (r == 1)
-          lac_error("Symbol not defined", sym);
-      lac_error("Env lookup failure.", NIL);
-    }
-  return ret;
-}
-
-static lreg_t eval_cons(lreg_t cons, lenv_t *env)
-{
-  return apply(eval(car(cons), env), cdr(cons), env);
+	return apply2(proc, args, env, env);
 }
 
 lreg_t eval(lreg_t sexp, lenv_t *env)
 {
-  lreg_t ans = NIL;
-  switch (LREG_TYPE(sexp))
+  lreg_t ans;
+  switch (lreg_raw_type(sexp))
     {
     case LREG_NIL:
-      return NIL;
+      ans = NIL;
+      break;
     case LREG_SYMBOL:
-      return eval_sym(sexp, env);
+      ans = env_lookup(env, sexp);
+      break;
     case LREG_CONS:
-      return eval_cons(sexp, env);
+      ans = apply(eval(car(sexp), env), cdr(sexp), env);
+      break;
     default:
       if ( !lacint_extty_eval(sexp, &ans) )
-        lac_error("Undefined Extension Type! This is a serious LAC BUG().", NIL);
+        lac_error("Undefined Extension Type!"
+                  " This is a serious LAC BUG().", NIL);
         /* Not reached. */
     }
   return ans;
@@ -465,7 +401,7 @@ LAC_API static lreg_t proc_quote(lreg_t args, lenv_t *env)
 
 static void _qquote(lreg_t sexp, lenv_t *env, lreg_t *first, lreg_t *last, int nested)
 {
-  switch ( LREG_TYPE(sexp) )
+  switch ( lreg_raw_type(sexp) )
     {
     case LREG_CONS:
       if ( car(sexp) == sym_quasiquote )
@@ -495,7 +431,7 @@ static void _qquote(lreg_t sexp, lenv_t *env, lreg_t *first, lreg_t *last, int n
 		lac_error("SPLICE expected on car only.", NIL);
       
 	      tosplice = eval(car(cdr(sexp)), env);
-	      switch( LREG_TYPE(tosplice) )
+	      switch( lreg_raw_type (tosplice) )
 		{
 		  lreg_t tail = NIL;
 		case LREG_CONS:
@@ -527,7 +463,7 @@ static void _qquote(lreg_t sexp, lenv_t *env, lreg_t *first, lreg_t *last, int n
 	  if ( qqalast != NIL )
 	    {
 	      if ( cdr(qqalast) == NIL  )
-		get_cons(qqalast)->d = qqd;
+                rplacd(qqalast, qqd);
 	      else if ( qqd != NIL )
 		lac_error("Dotted pairs in spliced list can be"
 			    " present only when splicing is at end of a list.", qqd);
@@ -602,7 +538,7 @@ LAC_API static lreg_t proc_rplaca(lreg_t args, lenv_t *env)
   if ( !is_cons(arg1) )
     _ERROR_AND_RET("argument is not cons");
 
-  get_cons(arg1)->a = arg2;
+  rplaca(arg1, arg2);
   return arg1;
 }
 
@@ -615,7 +551,7 @@ LAC_API static lreg_t proc_rplacd(lreg_t args, lenv_t *env)
   if ( !is_cons(arg1) )
     _ERROR_AND_RET("argument is not cons");
 
-  get_cons(arg1)->d = arg2;
+  rplacd(arg1, arg2);
   return arg1;
 }
 
@@ -644,7 +580,7 @@ LAC_API static lreg_t proc_apply(lreg_t args, lenv_t *env)
   lreg_t arg1 = eval(car(args), env);
   lreg_t arg2 = eval(car(cdr(args)), env);
 
-  return _apply(arg1, arg2, env, 0);
+  return apply2(arg1, arg2, NULL, env);
 }
 
 /* Special Form */
@@ -832,12 +768,12 @@ static void machine_init(void)
   bind_symbol(sym_true, sym_true); /* Tautology. */
 
   sym_quote = register_symbol("QUOTE");
-  bind_symbol(sym_quote, sform_to_lreg(proc_quote));
-  bind_symbol(register_symbol("COND"), sform_to_lreg(proc_cond));
-  bind_symbol(register_symbol("LAMBDA"), sform_to_lreg(proc_lambda));
-  bind_symbol(register_symbol("DEFINE"), sform_to_lreg(proc_define));
-  bind_symbol(register_symbol("MACRO"), sform_to_lreg(proc_macro));
-  bind_symbol(register_symbol("LABELS"), sform_to_lreg(proc_labels));
+  bind_symbol(sym_quote, llproc_to_lreg(proc_quote));
+  bind_symbol(register_symbol("COND"), llproc_to_lreg(proc_cond));
+  bind_symbol(register_symbol("LAMBDA"), llproc_to_lreg(proc_lambda));
+  bind_symbol(register_symbol("DEFINE"), llproc_to_lreg(proc_define));
+  bind_symbol(register_symbol("MACRO"), llproc_to_lreg(proc_macro));
+  bind_symbol(register_symbol("LABELS"), llproc_to_lreg(proc_labels));
 
   bind_symbol(register_symbol("CONS"), llproc_to_lreg(proc_cons));
   bind_symbol(register_symbol("CAR"), llproc_to_lreg(proc_car));
@@ -853,7 +789,7 @@ static void machine_init(void)
   bind_symbol(register_symbol("SYMBOLP"), llproc_to_lreg(LAC_TYPE_PFUNC(symbol)));
 
   sym_quasiquote = register_symbol("QUASIQUOTE");
-  bind_symbol(sym_quasiquote, sform_to_lreg(proc_quasiquote));
+  bind_symbol(sym_quasiquote, llproc_to_lreg(proc_quasiquote));
   sym_unquote = register_symbol("UNQUOTE");
   sym_splice = register_symbol("SPLICE");
   sym_rest = register_symbol("&REST");

@@ -1,5 +1,5 @@
 /*
-   lac -- a laconic lisp interpreter
+    lac -- a laconic lisp interpreter
    Copyright (C) 2010 Gianluca Guida
 
    This program is free software; you can redistribute it and/or modify
@@ -58,13 +58,13 @@ typedef uintptr_t lreg_t;
 
 enum lreg_type
   {
-    LREG_CONS = 0,  /* Cons cells */
-    LREG_SYMBOL,    /* Symbols */
-    LREG_SFORM,     /* Special forms. */
-    LREG_LLPROC,    /* C ll procedures */
+    LREG_CONS = 0,  /* Cons cells. */
+    LREG_SYMBOL,    /* Symbols. */
+    LREG_ENV,       /* Symbol Table */
+    LREG_LLPROC,    /* C procedures. */
     LREG_LAMBDA,    /* Lambda procedures. */
     LREG_MACRO,     /* Macro procedures. */
-    LREG_NIL,       /* NIL */
+    LREG_NIL,       /* NIL. */
     LREG_EXTT,      /* External Type. */
     /* EXTTYs */
     LREG_STRING,    /* String, Fixed External type. */
@@ -78,6 +78,12 @@ enum lreg_type
 /*
  * EXTTY handling.
  */
+
+struct treg_hdr {
+	unsigned type;
+   size_t   size;
+};
+
 typedef struct {
   char *name;
   void (*print)(FILE *fd, lreg_t lr);
@@ -97,15 +103,6 @@ int lacint_extty_eq(lreg_t arg1, lreg_t arg2, lreg_t *ans);
 int lacint_extty_eval(lreg_t lr, lreg_t *ans);
 #endif
 
-static inline unsigned lreg_type(lreg_t lr)
-{
-  unsigned raw_type = lr & LREG_TYPE_MASK;
-  if ( raw_type != LREG_EXTT )
-    return raw_type;
-
-  return lac_extty_get_type(lr);
-}
-
 static inline lreg_t lreg_raw(void *ptr, unsigned type)
 {
   return (lreg_t)((uintptr_t)ptr & ~LREG_TYPE_MASK) | type;
@@ -116,31 +113,40 @@ static inline void *lreg_raw_ptr(lreg_t lr)
   return (void *)((uintptr_t)lr & ~LREG_TYPE_MASK);
 }
 
-#if 0
-static inline lreg_t lreg(void *ptr, unsigned type)
+static inline uintptr_t lreg_raw_type(lreg_t lr)
 {
-  treg_t *tr;
-
-  if ( type < LREG_EXTT )
-    return lreg_raw(ptr, type);
-
-  tr = GC_malloc(sizeof(treg_t));
-  tr->tag = type;
-  tr->ptr = ptr;
-  return (lreg_t)(((uintptr_t)tr & ~LREG_TYPE_MASK) | LREG_EXTT);
+  return (uintptr_t)lr & LREG_TYPE_MASK;
 }
-#endif
+
+static inline unsigned lreg_type(lreg_t lr)
+{
+  unsigned raw_type = lr & LREG_TYPE_MASK;
+
+  switch(raw_type) {
+  case LREG_EXTT:
+    return ((struct treg_hdr *)lreg_raw_ptr(lr))->type;
+  default:
+    return raw_type;
+  }
+}
+
 
 #define LREG_TYPE(lr) lreg_type(lr)
 #define NIL lreg_raw(0,LREG_NIL)
 
-#define HT_SIZE 31
+#define HT_SIZE 32
 
 struct ht_entry
 {
   lreg_t key;
   lreg_t value;
   struct ht_entry *next;
+};
+
+struct ht_cache
+{
+  lreg_t key;
+  lreg_t value;
 };
 
 typedef struct ht
@@ -163,16 +169,21 @@ typedef struct cons cons_t;
 #define is_cons(lr) (LREG_TYPE(lr) == LREG_CONS)
 static inline cons_t *get_cons(lreg_t lr)
 {
-  assert(is_cons(lr));
-  return (cons_t *)lreg_raw_ptr(lr);
+  if (lreg_raw_type(lr) == LREG_CONS)
+    return (cons_t *)lreg_raw_ptr(lr);
+  lac_error("not a cons", lr);
+
 }
 
 #define is_symbol(lr) (LREG_TYPE(lr) == LREG_SYMBOL)
 
 lreg_t cons(lreg_t a, lreg_t b);
-lreg_t car(lreg_t lr);
-lreg_t cdr(lreg_t lr);
 lreg_t intern_symbol(char *s);
+
+#define car(_lr) (get_cons(_lr)->a)
+#define cdr(_lr) (get_cons(_lr)->d)
+#define rplaca(_lr, _a) do { get_cons(_lr)->a = (_a); } while(0)
+#define rplacd(_lr, _d) do { get_cons(_lr)->d = (_d); } while(0)
 
 
 /*
@@ -181,10 +192,6 @@ lreg_t intern_symbol(char *s);
 #define is_llproc(lr) (LREG_TYPE(lr) == LREG_LLPROC)
 #define lreg_to_llproc(lr) lreg_to_cfunc(lr)
 #define llproc_to_lreg(llproc) cfunc_to_lreg(llproc, LREG_LLPROC)
-
-#define is_sform(lr) (LREG_TYPE(lr) == LREG_SFORM)
-#define lreg_to_sform(lr) lreg_to_cfunc(lr)
-#define sform_to_lreg(sform) cfunc_to_lreg(sform, LREG_SFORM)
 
 #define LAC_API __attribute__((aligned(16)))
 
@@ -225,7 +232,7 @@ static inline lreg_t get_proc_binds(lreg_t lr)
 {
    return car(lr);
 }
-static inline lreg_t get_proc_evlist(lreg_t lr)
+static inline lreg_t get_proc_body(lreg_t lr)
 {
   return cdr(lr);
 }    
@@ -295,7 +302,7 @@ void lac_error(char *, lreg_t) _noreturn;
  * Environment management.
  */
 void env_init(lenv_t *env);
-int env_lookup(lenv_t *env, lreg_t key, lreg_t *res);
+lreg_t env_lookup(lenv_t *env, lreg_t key);
 int env_define(lenv_t *env, lreg_t key, lreg_t value);
 int env_set(lenv_t *env, lreg_t key, lreg_t value);
 void env_pushnew(lenv_t *env, lenv_t *new);
