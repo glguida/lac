@@ -218,29 +218,6 @@ lreg_t cons(lreg_t a, lreg_t d)
   c->d = d;
   return lreg_raw(c, LREG_CONS);
 }
-#if 0
-lreg_t car(lreg_t lr)
-{
-  if (lr == NIL)
-    return NIL;
-  if (lreg_raw_type(lr) == LREG_CONS)
-    return ((cons_t *)lreg_raw_ptr(lr))->a;
-
-  lac_error("Not a cons cell", lr);
-  return NIL;
-}
-
-lreg_t cdr(lreg_t lr)
-{
-  if (lr == NIL)
-    return NIL;
-  if (lreg_raw_type(lr) == LREG_CONS)
-    return ((cons_t *)lreg_raw_ptr(lr))->d;
-
-  lac_error("Not a cons cell", lr);
-  return NIL;
-}
-#endif
 
 /* Ret values: < 0 => error, 0 => found, 1 not found */
 int assq(lreg_t key, lreg_t alist, lreg_t *res)
