@@ -1,8 +1,16 @@
 project(laconic)
 cmake_minimum_required(VERSION 2.8)
 
-set(CMAKE_C_FLAGS_DEBUG "-g -Wall -O0 -fno-inline ${CMAKE_C_FLAGS_DEBUG}")
+set(CMAKE_C_FLAGS_DEBUG "-g -Wall -O0 ${CMAKE_C_FLAGS_DEBUG}")
 set(CMAKE_C_FLAGS_RELEASE "-Wall -O3 ${CMAKE_C_FLAGS_RELEASE}")
+set(CMAKE_C_FLAGS_GCOV "-fprofile-arcs -ftest-coverage")
+set(CMAKE_EXE_LINKER_FLAGS_GCOV "-fprofile-arcs -ftest-coverage")
+set(CMAKE_C_FLAGS_GPROF "-pg")
+set(CMAKE_EXE_LINKER_FLAGS_GPROF "-pg")
+
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS_GPROF}")
+#set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS_GPROF}")
+
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
 
 set(laconic_VERSION 0.1)
