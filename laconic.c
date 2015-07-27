@@ -219,38 +219,6 @@ lreg_t cons(lreg_t a, lreg_t d)
   return lreg_raw(c, LREG_CONS);
 }
 
-/* Ret values: < 0 => error, 0 => found, 1 not found */
-int assq(lreg_t key, lreg_t alist, lreg_t *res)
-{
-  if (!is_cons(alist) && alist != NIL)
-    {
-      lac_error("Invalid alist", alist);
-      /* Not reached. */
-    }
-
-  for (; alist != NIL; alist = cdr(alist))
-    {
-      lreg_t a = car(alist);
-      
-      if (!is_cons(a))
-	{
-	  lac_error("Invalid alist", a);
-          /* Not reached. */
-	}
-
-      if (key == car(a))
-	{
-	  *res = a;
-	  return 0;
-	}
-    }
-
-  /* Not found */
-  *res = NIL;
-  return 1;
-}
-
-
 /*
  * Eval/Apply
  */
@@ -736,7 +704,7 @@ static void machine_init(void)
   hcreate(500);
 
   /* Init Null Env */
-  env_pushnew(NULL, &null_env);
+  memset(&null_env, 0, sizeof(struct env));
 
   /* Lisp-style booleans.
      Can be changed into Scheme-scheme. */

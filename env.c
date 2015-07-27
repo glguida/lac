@@ -102,9 +102,6 @@ int env_set(lenv_t *env, lreg_t key, lreg_t value)
 
 void env_pushnew(lenv_t *env, lenv_t *new)
 {
-  if ( env == NULL )
-    memset(new, 0, sizeof(lenv_t));
-  else
     new->htable = env->htable;
 }
 

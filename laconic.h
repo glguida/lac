@@ -197,7 +197,7 @@ static inline cons_t *get_cons(lreg_t lr)
 typedef lreg_t (*lac_function_t)(lreg_t args, lenv_t *env);
 static inline lac_function_t lreg_to_cfunc(lreg_t lr)
 {
-  assert(is_llproc(lr) || is_sform(lr));
+  assert(is_llproc(lr));// || is_sform(lr));
   return (lac_function_t)lreg_raw_ptr(lr);
 }
 static inline lreg_t cfunc_to_lreg(lac_function_t llproc, unsigned type)
