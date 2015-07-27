@@ -311,7 +311,7 @@ static lreg_t apply2(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env)
 	  args = NIL;
   }
 
-  if (is_cons(binds) && car(binds) != sym_rest)
+  if (is_cons(binds))
 	  lac_error("Undefined bindings", binds);
 
   if (is_cons(args))

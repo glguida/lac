@@ -21,7 +21,7 @@
 #include "laconic.h"
 #include <gc/gc.h>
 
-#define is_cons(lr) (lreg_type(lr) == LREG_CONS)
+#define is_cons(lr) (lreg_raw_type(lr) == LREG_CONS)
 
 static lreg_t map_args(lreg_t lists)
 {

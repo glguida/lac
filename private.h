@@ -32,6 +32,13 @@
 #include <assert.h>
 #endif
 
+#define is_llproc(lr) (lreg_raw_type(lr) == LREG_LLPROC)
+#define is_symbol(lr) (lreg_raw_type(lr) == LREG_SYMBOL)
+#define is_cons(lr) (lreg_raw_type(lr) == LREG_CONS)
+#define is_lambda(lr) (lreg_raw_type(lr) == LREG_LAMBDA)
+#define is_macro(lr) (lreg_raw_type(lr) == LREG_MACRO)
+
+
 int lacint_extty_print(FILE * fd, lreg_t lr);
 int lacint_extty_eq(lreg_t arg1, lreg_t arg2, lreg_t * ans);
 
@@ -80,13 +87,11 @@ static inline lreg_t cfunc_to_lreg(lac_function_t llproc, unsigned type)
  * Macro/Lambda procedures
  */
 
-#define is_lambda(lr) (lreg_type(lr) == LREG_LAMBDA)
-#define is_macro(lr) (lreg_type(lr) == LREG_MACRO)
 static inline lreg_t get_closure_proc(lreg_t lr)
 {
 	lreg_t c = lreg_raw(lreg_raw_ptr(lr), LREG_CONS);
-	assert((lreg_type(lr) == LREG_LAMBDA)
-	       || (lreg_type(lr) == LREG_MACRO));
+	assert((lreg_raw_type(lr) == LREG_LAMBDA)
+	       || (lreg_raw_type(lr) == LREG_MACRO));
 
 	return car(c);
 }
@@ -94,8 +99,8 @@ static inline lreg_t get_closure_proc(lreg_t lr)
 static inline lenv_t *get_closure_env(lreg_t lr)
 {
 	lreg_t c = lreg_raw(lreg_raw_ptr(lr), LREG_CONS);
-	assert((lreg_type(lr) == LREG_LAMBDA)
-	       || (lreg_type(lr) == LREG_MACRO));
+	assert((lreg_raw_type(lr) == LREG_LAMBDA)
+	       || (lreg_raw_type(lr) == LREG_MACRO));
 
 	return (lenv_t *) lreg_raw_ptr(cdr(c));
 }
@@ -122,13 +127,5 @@ lreg_t env_lookup(lenv_t * env, lreg_t key);
 int env_define(lenv_t * env, lreg_t key, lreg_t value);
 int env_set(lenv_t * env, lreg_t key, lreg_t value);
 void env_pushnew(lenv_t * env, lenv_t * new);
-
-/*
- * Types shortcuts.
- */
-
-#define is_llproc(lr) (lreg_type(lr) == LREG_LLPROC)
-#define is_symbol(lr) (lreg_type(lr) == LREG_SYMBOL)
-#define is_cons(lr) (lreg_type(lr) == LREG_CONS)
 
 #endif				/* PRIVATE_H */
