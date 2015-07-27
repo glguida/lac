@@ -170,8 +170,8 @@ lreg_t cons(lreg_t a, lreg_t b);
 lreg_t intern_symbol(char *s);
 #define is_cons(lr) (LREG_TYPE(lr) == LREG_CONS)
 #define is_symbol(lr) (LREG_TYPE(lr) == LREG_SYMBOL)
-#define car(_lr) (get_cons(_lr)->a)
-#define cdr(_lr) (get_cons(_lr)->d)
+#define car(_lr) ((_lr) == NIL ? NIL : get_cons(_lr)->a)
+#define cdr(_lr) ((_lr) == NIL ? NIL : get_cons(_lr)->d)
 #define rplaca(_lr, _a) do { get_cons(_lr)->a = (_a); } while(0)
 #define rplacd(_lr, _d) do { get_cons(_lr)->d = (_d); } while(0)
 
