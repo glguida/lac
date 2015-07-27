@@ -276,24 +276,33 @@ static lreg_t apply2(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env)
   lproc = get_closure_proc(proc);
   binds = get_proc_binds(lproc);
   body = get_proc_body(lproc);
-  for ( ; binds != NIL; binds = cdr(binds), args = cdr(args) ) {
-    if (car(binds) == sym_rest) {
-      binds = cdr(binds);
-      if (!is_cons(binds))
-	lac_error("Expected binding after &rest", NIL);
-      if (cdr(binds) != NIL)
-	lac_error("Expected &rest to be last parameter", cdr(binds));
-      arg = args;
-      if (argenv)
-	arg = evargs(arg, argenv);
-    } else {
-      arg = car(args);
-      if (argenv)
-	arg = eval(arg, env);
-    }
 
-    env_define(&lenv, car(binds), arg);
+  while (is_cons(binds) && is_cons(args)) {
+	  if (car(binds) == sym_rest)
+		  break;
+	  arg = car(args);
+	  if (argenv)
+		  arg = eval(arg, env);
+	  env_define(&lenv, car(binds), arg);
+	  binds = cdr(binds);
+	  args = cdr(args);
   }
+
+  if (car(binds) == sym_rest) {
+	  binds = cdr(binds);
+	  arg = args;
+	  if (argenv)
+		  arg = evargs(arg, argenv);
+	  env_define(&lenv, car(binds), arg);
+	  binds = cdr(binds);
+	  args = NIL;
+  }
+
+  if (is_cons(binds) && car(binds) != sym_rest)
+	  lac_error("Undefined bindings", binds);
+
+  if (is_cons(args))
+	  lac_error("Too many arguments", args);
 
   ret = evlist(body, &lenv);
 
