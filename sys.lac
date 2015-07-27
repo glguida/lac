@@ -18,6 +18,12 @@
 (defun cddar (x) (cdr (cdr (car x))))
 (defun cdddr (x) (cdr (cdr (cdr x))))
 
+(defun nthcdr (n l)
+       (cond ((eq n 0) l)
+       	     (t        (nthcdr (- n 1) (cdr l)))))
+(defun nth (n l)
+       (car (nthcdr n l)))
+
 (defun first (l) (car l))
 (defun second (l) (first (cdr l)))
 (defun third (l) (second (cdr l)))
@@ -41,14 +47,16 @@
 	(t)))
 
 (defmacro or (x &rest y)
-  (let ((g (gensym)))
-    `(let ((,g ,x))
-       (if ,g ,g  (if (null ',y) NIL (or ,@y))))))
+	  `(cond ((not (eq ,x ())) T)
+	  	 (t ,(if y
+		    	 `(or ,@y)
+			 ()))))
 
 (defmacro and (x &rest y)
-  (let ((g (gensym)))
-    `(let ((,g ,x))
-       (if (null ',y) ,g (if ,g (and ,@y) NIL)))))
+	  `(cond ((eq ,x NIL) NIL)
+	  	 (t ,(if y
+		    	 `(and ,@y)
+			 t))))
 
 (defun last (x) (cond ((null (cdr x)) x) (t (last (cdr x)))))
 
@@ -87,23 +95,18 @@
   (list 'set (list 'quote place) (list 'cons x place)))
 
 
-(defun listp (x) (or (nullp x) (consp x)))
+(defun listp (x) (or (null x) (consp x)))
 (defun atomp (x) (not (consp x)))
 
 (defun assq (s alist)
-  (if (null alist) 
-      NIL 
-      (if (eq (caar alist) s)
-	  (car alist) (assq s (cdr alist)))))
-
-(defun nth (n l)
-  (cond 
-    ((eq n 0) (car l))
-    (t (nth (- n 1) (cdr l)))))
-
+       (if (null alist) 
+       	    NIL 
+      	    (if (eq (caar alist) s)
+	    	(car alist)
+		(assq s (cdr alist)))))
 
 (defmacro setq (sym val) 
-  `(set ',sym ,val))
+	  `(set ',sym ,val))
 
 (defun 1+ (x) (+ 1 x))
 (defun 1- (x) (- x 1))
@@ -116,5 +119,4 @@
   (cond
     ((and (stringp x) (stringp y)) (string-equal x y))
     (t                             (eq x y))))
-       
 
