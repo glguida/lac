@@ -103,7 +103,7 @@ SIGN [+|-]
 
 
 {SIGN}?{DIGIT}+ {
-	unsigned long *n = GC_malloc(sizeof(unsigned long));
+	unsigned long *n = lac_alloc(sizeof(unsigned long));
 
 	errno = 0;
 	*n = strtol(yytext, (char **)NULL, 10);
@@ -119,7 +119,7 @@ SIGN [+|-]
 }
 
 (#x|0x){HEXDIGIT}+ {
-	unsigned long *n = GC_malloc(sizeof(unsigned long));
+	unsigned long *n = lac_alloc(sizeof(unsigned long));
 
 	errno = 0;
 	*n = strtol(yytext+2, (char **)NULL, 16);
@@ -131,7 +131,7 @@ SIGN [+|-]
 
 \"[^\"]*\" {
 	size_t len = strlen(yytext);
-	char *s = GC_MALLOC(len - 1);
+	char *s = lac_alloc(len - 1);
 	memcpy(s, yytext+1, len - 2);
 	*lvalp = lac_extty_box(LREG_STRING, s, len-2);
 	return ATOM;
@@ -140,7 +140,7 @@ SIGN [+|-]
 (({DIGIT}+({SPECIAL}|{ALPHA}))|{ALPHA}|{SP_INIT})({SPECIAL}|{ALPHA}|{DIGIT})* {
 	int i;
 	size_t len = strlen(yytext);
-	char *s = GC_MALLOC(len + 1);
+	char *s = lac_alloc(len + 1);
 	for (i = 0; i < len; i++)
 		*(s+i) = toupper((int)*(yytext+i));
 	*lvalp = intern_symbol(s);
@@ -153,5 +153,3 @@ SIGN [+|-]
 
 
 %%
-
-

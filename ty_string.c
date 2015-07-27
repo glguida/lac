@@ -58,8 +58,8 @@ static int string_compare(lreg_t arg1, lreg_t arg2)
   lreg_t s1 = eval(car(args), env);			\
   lreg_t s2 = eval(car(cdr(args)), env);		\
 							\
-  if ( LREG_TYPE(s1) != LREG_TYPE(s2)			\
-       || !(LREG_TYPE(s1) == LREG_STRING) )		\
+  if ( lreg_type(s1) != lreg_type(s2)			\
+       || !(lreg_type(s1) == LREG_STRING) )			\
     _ERROR_AND_RET("Function requires two strings!\n");
 
 
@@ -92,8 +92,8 @@ static lac_exttype_t string_ty = {
 void string_init(void)
 {
   lac_extty_register(LREG_STRING, &string_ty);
-  bind_symbol(register_symbol("STRINGP"), llproc_to_lreg(LAC_TYPE_PFUNC(string)));
-  bind_symbol(register_symbol("STRING-LESSP"), llproc_to_lreg(proc_string_lessp));
-  bind_symbol(register_symbol("STRING-GREATERP"), llproc_to_lreg(proc_string_greaterp));
-  bind_symbol(register_symbol("STRING-EQUAL"), llproc_to_lreg(proc_string_equal));
+  lac_extproc_register("STRINGP", LAC_TYPE_PFUNC(string));
+  lac_extproc_register("STRING-LESS", proc_string_lessp);
+  lac_extproc_register("STRING-GREATER", proc_string_greaterp);
+  lac_extproc_register("STRING-EQUAL", proc_string_equal);
 }

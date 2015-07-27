@@ -1,9 +1,10 @@
-#include "laconic.h"
+#include "private.h"
 #include <string.h>
 
 /*
  * External type handling.
  */
+
 static lac_exttype_t *ext_types[LREG_TYPES];
 
 #define EXTTY_IS_VALID(typeno) \
@@ -31,7 +32,7 @@ size_t lac_extty_get_size(lreg_t lr)
 
 lreg_t lac_extty_box(unsigned typeno, void *ptr, size_t sz)
 {
-	struct treg_hdr *treg = GC_malloc(sizeof(struct treg_hdr) + sz);
+	struct treg_hdr *treg = lac_alloc(sizeof(struct treg_hdr) + sz);
 	treg->type = typeno;
 	treg->size = sz;
 	treg->ptr = ptr;

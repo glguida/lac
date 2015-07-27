@@ -21,6 +21,8 @@
 #include "laconic.h"
 #include <gc/gc.h>
 
+#define is_cons(lr) (lreg_type(lr) == LREG_CONS)
+
 static lreg_t map_args(lreg_t lists)
 {
   lreg_t args = lists;
@@ -60,7 +62,7 @@ LAC_API static lreg_t proc_mapcar(lreg_t args, lenv_t *env)
   fn = car(evd);
   lists = cdr(evd);
 
-  switch ( LREG_TYPE(fn) )
+  switch ( lreg_type(fn) )
     {
     case LREG_LAMBDA:
     case LREG_MACRO:
@@ -111,6 +113,6 @@ LAC_API static lreg_t proc_reduce(lreg_t args, lenv_t *env)
 
 void map_init(void)
 {
-  bind_symbol(register_symbol("MAPCAR"), llproc_to_lreg(proc_mapcar));
-  bind_symbol(register_symbol("REDUCE"), llproc_to_lreg(proc_reduce));
+  lac_extproc_register("MAPCAR", proc_mapcar);
+  lac_extproc_register("REDURE", proc_reduce);
 }

@@ -59,8 +59,8 @@ static lac_exttype_t int_ty = {
   lreg_t arg1 = eval(car(args), env);			\
   lreg_t arg2 = eval(car(cdr(args)), env);		\
 							\
-  if ( !(LREG_TYPE(arg1) == LREG_TYPE(arg2))		\
-       || LREG_TYPE(arg1) != LREG_INTEGER )		\
+  if ( !(lreg_type(arg1) == lreg_type(arg2))		\
+       || lreg_type(arg1) != LREG_INTEGER )		\
       _ERROR_AND_RET("+ requires two integers");	\
 							\
   lac_extty_unbox(arg1, (void **)&a);			\
@@ -76,7 +76,7 @@ LAC_API static lreg_t proc_plus(lreg_t args, lenv_t *env)
        || ((*n1<0) && (*n2<0) && (*n1 < (LONG_MIN-*n2))) )
     _ERROR_AND_RET("+: Integer overflow\n");
 
-  n = GC_malloc(sizeof(*n));
+  n = lac_alloc(sizeof(*n));
   *n = *n1 + *n2;
   return lac_extty_box(LREG_INTEGER, n, sizeof(*n));
 }
@@ -90,7 +90,7 @@ LAC_API static lreg_t proc_minus(lreg_t args, lenv_t *env)
        || ((*n1<0) && (*n2>0) && (*n1 < (LONG_MIN + *n2))) )
     _ERROR_AND_RET("-: Integer signed overflow\n");
 
-  n = GC_malloc(sizeof(*n));
+  n = lac_alloc(sizeof(*n));
   *n = *n1 - *n2;
   return lac_extty_box(LREG_INTEGER, n, sizeof(*n));
 }
@@ -121,7 +121,7 @@ LAC_API static lreg_t proc_star(lreg_t args, lenv_t *env)
     }
 
  mul_res:
-  n = GC_malloc(sizeof(*n));
+  n = lac_alloc(sizeof(*n));
   *n = *n1 * *n2;
   return lac_extty_box(LREG_INTEGER, n, sizeof(*n));
 
@@ -138,7 +138,7 @@ LAC_API static lreg_t proc_mod(lreg_t args, lenv_t *env)
   if ( (*n2 == 0 ) || ( (*n1 == LONG_MIN) && (*n2 == -1) ) )
       _ERROR_AND_RET("\%% would overflow or divide by zero\n");
 
-  n = GC_malloc(sizeof(*n));
+  n = lac_alloc(sizeof(*n));
   *n = *n1 % *n2;
   return lac_extty_box(LREG_INTEGER, n, sizeof(*n));
 }
@@ -151,7 +151,7 @@ LAC_API static lreg_t proc_div(lreg_t args, lenv_t *env)
   if ( (*n2 == 0 ) || ( (*n1 == LONG_MIN) && (*n2 == -1) ) )
       _ERROR_AND_RET("\%% would overflow or divide by zero\n");
 
-  n = GC_malloc(sizeof(*n));
+  n = lac_alloc(sizeof(*n));
   *n = *n1 / *n2;
   return lac_extty_box(LREG_INTEGER, n, sizeof(*n));
 }
@@ -189,14 +189,14 @@ LAC_DEFINE_TYPE_PFUNC(integer, LREG_INTEGER);
 void int_init(void)
 {
   lac_extty_register(LREG_INTEGER, &int_ty);
-  bind_symbol(register_symbol("INTEGERP"),llproc_to_lreg(LAC_TYPE_PFUNC(integer)));
-  bind_symbol(register_symbol("+"), llproc_to_lreg(proc_plus));
-  bind_symbol(register_symbol("-"), llproc_to_lreg(proc_minus));
-  bind_symbol(register_symbol("*"), llproc_to_lreg(proc_star));
-  bind_symbol(register_symbol("%"), llproc_to_lreg(proc_mod));
-  bind_symbol(register_symbol("/"), llproc_to_lreg(proc_div));
-  bind_symbol(register_symbol(">"), llproc_to_lreg(proc_greater));
-  bind_symbol(register_symbol(">="), llproc_to_lreg(proc_greatereq));
-  bind_symbol(register_symbol("<"), llproc_to_lreg(proc_less));
-  bind_symbol(register_symbol("<="), llproc_to_lreg(proc_lesseq));
+  lac_extproc_register("INTEGERP",LAC_TYPE_PFUNC(integer));
+  lac_extproc_register("+", proc_plus);
+  lac_extproc_register("-", proc_minus);
+  lac_extproc_register("*", proc_star);
+  lac_extproc_register("%", proc_mod);
+  lac_extproc_register("/", proc_div);
+  lac_extproc_register(">", proc_greater);
+  lac_extproc_register(">=", proc_greatereq);
+  lac_extproc_register("<", proc_less);
+  lac_extproc_register("<=", proc_lesseq);
 }

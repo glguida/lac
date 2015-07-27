@@ -27,6 +27,7 @@
 #include <gc/gc.h>
 #include <signal.h>
 #include <sigsegv.h>
+#include "private.h"
 #include "laconic.h"
 
 
@@ -50,8 +51,20 @@ lreg_t sym_rest;
 
 
 /*
+ * Interface
+ */
+
+int lac_extproc_register(const char *sym, lac_function_t f)
+{
+  bind_symbol(register_symbol(sym), llproc_to_lreg(f));
+  return 0;
+}
+
+
+/*
  * Error handling.
  */
+
 jmp_buf lac_error_jmp;
 void lac_print(FILE *fd, lreg_t);
 
@@ -158,7 +171,7 @@ void lac_print_cons(FILE *fd, lreg_t lr)
 
 void lac_print(FILE *fd, lreg_t lr)
 {
-  switch ( LREG_TYPE(lr) )
+  switch ( lreg_type(lr) )
     {
     case LREG_NIL:
       fprintf(fd, "() ");
@@ -181,7 +194,7 @@ void lac_print(FILE *fd, lreg_t lr)
       break;
     default:
       if ( !lacint_extty_print(fd, lr) )
-	fprintf(fd, "<??? %d>",(int)LREG_TYPE(lr));
+	fprintf(fd, "<??? %d>",(int)lreg_type(lr));
     }
   return;
 }
@@ -213,7 +226,7 @@ void bind_symbol(lreg_t sym, lreg_t val)
 
 lreg_t cons(lreg_t a, lreg_t d)
 {
-  cons_t *c = GC_malloc(sizeof(cons_t));
+  struct cons *c = GC_malloc(sizeof(struct cons));
   c->a = a;
   c->d = d;
   return lreg_raw(c, LREG_CONS);
@@ -520,7 +533,7 @@ LAC_API static lreg_t proc_eq(lreg_t args, lenv_t *env)
     {
       /* Special type. We don't use memory tagging but pointer
 	 tagging, so this is a necessary evil. */
-      if ( LREG_TYPE(arg1) == LREG_TYPE(arg2) )
+      if ( lreg_type(arg1) == lreg_type(arg2) )
         lacint_extty_eq(arg1, arg2, &ans);
     }
   return ans;
@@ -676,7 +689,7 @@ LAC_API static lreg_t proc_load(lreg_t args, lenv_t *env)
   _EXPECT_ARGS(args, 1);
   lreg_t arg1 = eval(car(args), env);
 
-  if ( LREG_TYPE(arg1) != LREG_STRING )
+  if ( lreg_type(arg1) != LREG_STRING )
     _ERROR_AND_RET("Syntax error in load");
 
   lac_extty_unbox(arg1, (void **)&file);
