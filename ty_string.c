@@ -28,20 +28,15 @@ static void string_print(FILE *fd, lreg_t lr)
 {
 
   char *s;
-  lac_extty_unbox(lr, &s, sizeof(s));
+  lac_extty_unbox(lr, (void **)&s);
   fprintf(fd, "\"%s\" ", s);
-}
-
-static lreg_t string_eval(lreg_t lr)
-{
-  return lr;
 }
 
 static lreg_t string_eq(lreg_t arg1, lreg_t arg2)
 {
   char *s1, *s2;
-  lac_extty_unbox(arg1, &s1, sizeof(s1));
-  lac_extty_unbox(arg1, &s2, sizeof(s2));
+  lac_extty_unbox(arg1, (void **)&s1);
+  lac_extty_unbox(arg2, (void **)&s2);
   if ( s1 == s2 )
     return sym_true;
   return sym_false;
@@ -49,16 +44,19 @@ static lreg_t string_eq(lreg_t arg1, lreg_t arg2)
 
 static int string_compare(lreg_t arg1, lreg_t arg2)
 {
+  int d;
   char *s1, *s2;
-  lac_extty_unbox(arg1, &s1, sizeof(s1));
-  lac_extty_unbox(arg1, &s2, sizeof(s2));
-  return strcmp(s1, s2);
+  lac_extty_unbox(arg1, (void **)&s1);
+  lac_extty_unbox(arg2, (void **)&s2);
+  d = strcmp(s1, s2);
+  printf("strcmp = %s %s %d\n", s1, s2, d);
+  return d;
 }
 
 #define BINARY_STR_OP_CHECKS(args)			\
   _EXPECT_ARGS(args, 2);				\
-  lreg_t s1 = car(args);				\
-  lreg_t s2 = car(cdr(args));				\
+  lreg_t s1 = eval(car(args), env);			\
+  lreg_t s2 = eval(car(cdr(args)), env);		\
 							\
   if ( LREG_TYPE(s1) != LREG_TYPE(s2)			\
        || !(LREG_TYPE(s1) == LREG_STRING) )		\
@@ -68,19 +66,19 @@ static int string_compare(lreg_t arg1, lreg_t arg2)
 LAC_API lreg_t proc_string_lessp(lreg_t args, lenv_t *env)
 {
   BINARY_STR_OP_CHECKS(args);
-  return string_compare(s1, s2) >= 0 ? sym_false : sym_true;
+  return (string_compare(s1, s2) >= 0 ? sym_false : sym_true);
 }
 
 LAC_API static lreg_t proc_string_greaterp(lreg_t args, lenv_t *env)
 {
   BINARY_STR_OP_CHECKS(args);
-  return string_compare(s1, s2) <= 0 ? sym_false : sym_true;
+  return (string_compare(s1, s2) <= 0 ? sym_false : sym_true);
 }
 
 LAC_API static lreg_t proc_string_equal(lreg_t args, lenv_t *env)
 {
   BINARY_STR_OP_CHECKS(args);
-  return string_compare(s1, s2) != 0 ? sym_false : sym_true;
+  return (string_compare(s1, s2) != 0 ? sym_false : sym_true);
 }
 
 LAC_DEFINE_TYPE_PFUNC(string, LREG_STRING)
@@ -88,7 +86,6 @@ LAC_DEFINE_TYPE_PFUNC(string, LREG_STRING)
 static lac_exttype_t string_ty = {
 	.name = "string",
 	.print = string_print,
-	.eval = string_eval,
 	.eq = string_eq
 };
 

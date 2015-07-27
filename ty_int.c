@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <limits.h>
 
-#define INT_UNBOX(lr, n) lac_extty_unbox(lr, n, sizeof(*n))
+#define INT_UNBOX(lr, n) lac_extty_unbox(lr, (void **)&n)
 
 /*
   LAC Type Interface.
@@ -29,28 +29,23 @@
 
 static void int_print(FILE *fd, lreg_t lr)
 {
-  long n;
-  INT_UNBOX(lr, &n);
-  fprintf(fd, "%ld ", n);
-}
+  long *n;
 
-static lreg_t int_eval(lreg_t lr)
-{
-  return lr;
+  INT_UNBOX(lr, n);
+  fprintf(fd, "%ld ", *n);
 }
 
 static lreg_t int_eq(lreg_t arg1, lreg_t arg2)
 {
-  long n1, n2;
-  INT_UNBOX(arg1, &n1);
-  INT_UNBOX(arg2, &n2);
-  return (n1 == n2) ? sym_true : sym_false;
+  long *n1, *n2;
+  INT_UNBOX(arg1, n1);
+  INT_UNBOX(arg2, n2);
+  return (*n1 == *n2) ? sym_true : sym_false;
 }
 
 static lac_exttype_t int_ty = { 
 	.name = "integer",
 	.print = int_print,
-	.eval = int_eval,
 	.eq = int_eq,
 };
 
@@ -68,64 +63,67 @@ static lac_exttype_t int_ty = {
        || LREG_TYPE(arg1) != LREG_INTEGER )		\
       _ERROR_AND_RET("+ requires two integers");	\
 							\
-  lac_extty_unbox(arg1, &a, sizeof(a));			\
-  lac_extty_unbox(arg2, &b, sizeof(b));
+  lac_extty_unbox(arg1, (void **)&a);			\
+  lac_extty_unbox(arg2, (void **)&b);
 
 
 LAC_API static lreg_t proc_plus(lreg_t args, lenv_t *env)
 {
-  long n1, n2, n;
+  long *n1, *n2, *n;
   _BINOP_CHECKS(n1, n2);
 
-  if ( ((n1>0) && (n2>0) && (n1 > (LONG_MAX-n2))) 
-       || ((n1<0) && (n2<0) && (n1 < (LONG_MIN-n2))) )
+  if ( ((*n1>0) && (*n2>0) && (*n1 > (LONG_MAX-*n2))) 
+       || ((*n1<0) && (*n2<0) && (*n1 < (LONG_MIN-*n2))) )
     _ERROR_AND_RET("+: Integer overflow\n");
 
-  n = n1 + n2;
-  return lac_extty_box(LREG_INTEGER, &n, sizeof(n));
+  n = GC_malloc(sizeof(*n));
+  *n = *n1 + *n2;
+  return lac_extty_box(LREG_INTEGER, n, sizeof(*n));
 }
 
 LAC_API static lreg_t proc_minus(lreg_t args, lenv_t *env)
 {
-  long n1, n2, n;
+  long *n1, *n2, *n;
   _BINOP_CHECKS(n1, n2);
 
-  if ( ((n1>0) && (n2 < 0) && (n1 > (LONG_MAX+n2)))
-       || ((n1<0) && (n2>0) && (n1 < (LONG_MIN + n2))) )
+  if ( ((*n1>0) && (*n2 < 0) && (*n1 > (LONG_MAX+*n2)))
+       || ((*n1<0) && (*n2>0) && (*n1 < (LONG_MIN + *n2))) )
     _ERROR_AND_RET("-: Integer signed overflow\n");
-  
-  n = n1 - n2;
-  return lac_extty_box(LREG_INTEGER, &n, sizeof(n));
+
+  n = GC_malloc(sizeof(*n));
+  *n = *n1 - *n2;
+  return lac_extty_box(LREG_INTEGER, n, sizeof(*n));
 }
 
 LAC_API static lreg_t proc_star(lreg_t args, lenv_t *env)
 {
-  long n1, n2, n;
+  long *n1, *n2, *n;
   _BINOP_CHECKS(n1, n2);
 
-  if ( n1 == 0 || n2 == 0 )
+  if ( *n1 == 0 || *n2 == 0 )
     goto mul_res;
 
-  if ( n1 > 0 )
-    if ( n2 > 0 ) {
-      if ( n1>(LONG_MAX/n2) )
+  if ( *n1 > 0 )
+    if ( *n2 > 0 ) {
+      if ( *n1>(LONG_MAX/(*n2)) )
 	goto mul_of;
     } else {
-      if ( n2<(LONG_MIN/n1) )
+      if ( *n2<(LONG_MIN/(*n1)) )
 	goto mul_of;
     }
   else
-    if ( n2 > 0 ) {
-      if ( n1<(LONG_MIN/n2) )
+    if ( *n2 > 0 ) {
+      if ( *n1<(LONG_MIN/(*n2)) )
 	goto mul_of;
     } else {
-      if ( n2 < (LONG_MAX/n1) )
+      if ( *n2 < (LONG_MAX/(*n1)) )
 	goto mul_of;
     }
 
  mul_res:
-  n = n1 * n2;
-  return lac_extty_box(LREG_INTEGER, &n, sizeof(n));
+  n = GC_malloc(sizeof(*n));
+  *n = *n1 * *n2;
+  return lac_extty_box(LREG_INTEGER, n, sizeof(*n));
 
  mul_of:
   _ERROR_AND_RET("*: Integer sign overflow\n");
@@ -134,54 +132,56 @@ LAC_API static lreg_t proc_star(lreg_t args, lenv_t *env)
 
 LAC_API static lreg_t proc_mod(lreg_t args, lenv_t *env)
 {
-  long n1, n2, n;
+  long *n1, *n2, *n;
   _BINOP_CHECKS(n1, n2);
 
-  if ( (n2 == 0 ) || ( (n1 == LONG_MIN) && (n2 == -1) ) )
+  if ( (*n2 == 0 ) || ( (*n1 == LONG_MIN) && (*n2 == -1) ) )
       _ERROR_AND_RET("\%% would overflow or divide by zero\n");
 
-  n = n1 % n2;
-  return lac_extty_box(LREG_INTEGER, &n, sizeof(n));
+  n = GC_malloc(sizeof(*n));
+  *n = *n1 % *n2;
+  return lac_extty_box(LREG_INTEGER, n, sizeof(*n));
 }
 
 LAC_API static lreg_t proc_div(lreg_t args, lenv_t *env)
 {
-  long n1, n2, n;
+  long *n1, *n2, *n;
   _BINOP_CHECKS(n1, n2);
 
-  if ( (n2 == 0 ) || ( (n1 == LONG_MIN) && (n2 == -1) ) )
+  if ( (*n2 == 0 ) || ( (*n1 == LONG_MIN) && (*n2 == -1) ) )
       _ERROR_AND_RET("\%% would overflow or divide by zero\n");
 
-  n = n1 / n2;
-  return lac_extty_box(LREG_INTEGER, &n, sizeof(n));
+  n = GC_malloc(sizeof(*n));
+  *n = *n1 / *n2;
+  return lac_extty_box(LREG_INTEGER, n, sizeof(*n));
 }
 
 LAC_API static lreg_t proc_greater(lreg_t args, lenv_t *env)
 {
-  long n1, n2;
+  long *n1, *n2;
   _BINOP_CHECKS(n1, n2);
-  return n1 > n2 ? sym_true : sym_false;
+  return *n1 > *n2 ? sym_true : sym_false;
 }
 
 LAC_API static lreg_t proc_greatereq(lreg_t args, lenv_t *env)
 {
-  long n1, n2;
+  long *n1, *n2;
   _BINOP_CHECKS(n1, n2);
-  return n1 >= n2 ? sym_true : sym_false;
+  return *n1 >= *n2 ? sym_true : sym_false;
 }
 
 LAC_API static lreg_t proc_less(lreg_t args, lenv_t *env)
 {
-  long n1, n2;
+  long *n1, *n2;
   _BINOP_CHECKS(n1, n2);
-  return n1 < n2 ? sym_true : sym_false;
+  return *n1 < *n2 ? sym_true : sym_false;
 }
 
 LAC_API static lreg_t proc_lesseq(lreg_t args, lenv_t *env)
 {
-  long n1, n2;
+  long *n1, *n2;
   _BINOP_CHECKS(n1, n2);
-  return n1 <= n2 ? sym_true : sym_false;
+  return *n1 <= *n2 ? sym_true : sym_false;
 }
 
 LAC_DEFINE_TYPE_PFUNC(integer, LREG_INTEGER);

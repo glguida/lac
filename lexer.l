@@ -102,43 +102,49 @@ SIGN [+|-]
 {WHITESPACE}
 
 
+{SIGN}?{DIGIT}+ {
+	unsigned long *n = GC_malloc(sizeof(unsigned long));
 
-
-
-{SIGN}?{DIGIT}+ { 
-		  errno = 0;
-		  unsigned long n = strtol(yytext, (char **)NULL, 10);
-		  if ( errno == ERANGE )
-			lac_error("Integer overflow in input", NIL);
-		  *lvalp = lac_extty_box(LREG_INTEGER, &n, sizeof(n));
-                  return ATOM;
+	errno = 0;
+	*n = strtol(yytext, (char **)NULL, 10);
+	if ( errno == ERANGE )
+		lac_error("Integer overflow in input", NIL);
+	*lvalp = lac_extty_box(LREG_INTEGER, n, sizeof(*n));
+	return ATOM;
 }
 
-(#x|0x){HEXDIGIT}+ { 
-		  errno = 0;
-		  unsigned long n = strtol(yytext+2, (char **)NULL, 16);
-		  if ( errno == ERANGE )
-			lac_error("Integer overflow in input", NIL);
-		  *lvalp = lac_extty_box(LREG_INTEGER, &n, sizeof(n));
-                  return ATOM;
+(NIL|nil) {
+	*lvalp = NIL;
+	return ATOM;
 }
 
+(#x|0x){HEXDIGIT}+ {
+	unsigned long *n = GC_malloc(sizeof(unsigned long));
+
+	errno = 0;
+	*n = strtol(yytext+2, (char **)NULL, 16);
+	if ( errno == ERANGE )
+		lac_error("Integer overflow in input", NIL);
+	*lvalp = lac_extty_box(LREG_INTEGER, n, sizeof(*n));
+	return ATOM;
+}
 
 \"[^\"]*\" {
-	     char *s = GC_MALLOC(strlen(yytext) - 1);
-             memcpy(s, yytext+1, strlen(yytext) - 2);
-             *lvalp = lac_extty_box(LREG_STRING, &s, sizeof(char *));
-             return ATOM;
+	size_t len = strlen(yytext);
+	char *s = GC_MALLOC(len - 1);
+	memcpy(s, yytext+1, len - 2);
+	*lvalp = lac_extty_box(LREG_STRING, s, len-2);
+	return ATOM;
 }
 
 (({DIGIT}+({SPECIAL}|{ALPHA}))|{ALPHA}|{SP_INIT})({SPECIAL}|{ALPHA}|{DIGIT})* {
-  int i;
-  char *s = GC_MALLOC(strlen(yytext) + 1);
-  for (i = 0; i < strlen(yytext); i++)
-    *(s+i) = toupper((int)*(yytext+i));
-  *lvalp = intern_symbol(s);
-  return ATOM;
-
+	int i;
+	size_t len = strlen(yytext);
+	char *s = GC_MALLOC(len + 1);
+	for (i = 0; i < len; i++)
+		*(s+i) = toupper((int)*(yytext+i));
+	*lvalp = intern_symbol(s);
+	return ATOM;
 };
 
 ,@ { return COMMA_AT; }

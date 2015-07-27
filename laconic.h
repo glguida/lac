@@ -80,26 +80,25 @@ enum lreg_type
 
 struct treg_hdr {
 	unsigned type;
-   size_t   size;
+	size_t   size;
+	void *ptr;
 };
 
 typedef struct {
   char *name;
   void (*print)(FILE *fd, lreg_t lr);
-  lreg_t (*eval)(lreg_t lr);
   lreg_t (*eq)(lreg_t arg1, lreg_t arg2);
 } lac_exttype_t;
 
 int lac_extty_register(unsigned typeno, lac_exttype_t *extty);
 lreg_t lac_extty_box(unsigned typeno, void *ptr, size_t size);
-size_t lac_extty_unbox(lreg_t lr, void *ptr, size_t maxsz);
+size_t lac_extty_unbox(lreg_t lr, void **ptr);
 unsigned lac_extty_get_type(lreg_t lr);
 size_t lac_extty_get_size(lreg_t lr);
 
 #ifdef _LAC_INTERNAL
 int lacint_extty_print(FILE *fd, lreg_t lr);
 int lacint_extty_eq(lreg_t arg1, lreg_t arg2, lreg_t *ans);
-int lacint_extty_eval(lreg_t lr, lreg_t *ans);
 #endif
 
 static inline lreg_t lreg_raw(void *ptr, unsigned type)

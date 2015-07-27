@@ -3,7 +3,6 @@
 ; a-la lisperati.com
 (defmacro defspel (&rest rest) `(defmacro ,@rest))
 
-(define NIL ())
 (defun null (x) (eq x NIL))
 
 (defun caar (x) (car (car x)))

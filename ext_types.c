@@ -34,19 +34,19 @@ lreg_t lac_extty_box(unsigned typeno, void *ptr, size_t sz)
 	struct treg_hdr *treg = GC_malloc(sizeof(struct treg_hdr) + sz);
 	treg->type = typeno;
 	treg->size = sz;
-	memcpy((void *)(treg + 1), ptr, sz);
+	treg->ptr = ptr;
 
 	return lreg_raw(treg, LREG_EXTT);
 }
 
 
-size_t lac_extty_unbox(lreg_t lr, void *ptr, size_t maxsz)
+size_t lac_extty_unbox(lreg_t lr, void **ptr)
 {
 	struct treg_hdr *treg = lreg_raw_ptr(lr);
-	size_t sz = maxsz > treg->size ? treg->size : maxsz;
 
-	memcpy(ptr, treg+1, sz);
-	return sz;
+	if (ptr)
+		*ptr = treg->ptr;
+	return treg->size;
 }
 
 int lacint_extty_print(FILE *fd, lreg_t lr)
@@ -71,17 +71,6 @@ int lacint_extty_eq(lreg_t arg1, lreg_t arg2, lreg_t *ans)
 	     && typeno1 == typeno2 
 	     && ext_types[typeno1] != NULL )
 		*ans = ext_types[typeno1]->eq(arg1, arg2);
-        else
-		return 0;
-	return 1;
-}
-
-int lacint_extty_eval(lreg_t lr, lreg_t *ans)
-{
-	unsigned typeno = lac_extty_get_type(lr);
-	if ( EXTTY_IS_VALID(typeno)
-	     && ext_types[typeno] != NULL )
-		*ans = ext_types[typeno]->eval(lr);
         else
 		return 0;
 	return 1;

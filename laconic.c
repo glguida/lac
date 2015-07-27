@@ -325,10 +325,8 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
       ans = apply(eval(car(sexp), env), cdr(sexp), env);
       break;
     default:
-      if ( !lacint_extty_eval(sexp, &ans) )
-        lac_error("Undefined Extension Type!"
-                  " This is a serious LAC BUG().", NIL);
-        /* Not reached. */
+      ans = sexp;
+      break;
     }
   return ans;
 }
@@ -672,7 +670,7 @@ LAC_API static lreg_t proc_load(lreg_t args, lenv_t *env)
   if ( LREG_TYPE(arg1) != LREG_STRING )
     _ERROR_AND_RET("Syntax error in load");
 
-  lac_extty_unbox(arg1, &file, sizeof(file));
+  lac_extty_unbox(arg1, (void **)&file);
 
   FILE *fd = fopen((char *)file, "r");
   if ( fd == NULL )
