@@ -111,26 +111,20 @@ static void stackovf_handler()
  * Read
  */
 
-#include "lexer.h"
-extern int yyparse(lreg_t *);
+#include "sexpr_lex.h"
+#include "sexpr_parse.h"
 
-int lac_read(FILE *fd, lreg_t *res)
+int lac_read(lreg_t *res, void *yyscan)
 {
   int r;
-  lreg_t statement;
-  
-  if (yyin != fd)
-      yy_switch_to_buffer(yy_create_buffer(fd, YY_BUF_SIZE));
 
-  r = yyparse(&statement);
+  r = sexpr_parse(res, yyscan);
 
   switch ( r ) {
-  case 0xf00: /* Statement */
-    *res = statement;
+  case 0: /* Statement */
     return 1;
 
-  case 0: /* EOF */
-    *res = statement;
+  case -1: /* EOF */
     return 0; 
 
   case 1: /* Syntax Error */
@@ -680,11 +674,12 @@ LAC_API static lreg_t proc_gensym(lreg_t args, lenv_t *env)
   return ret;
 }
 
-int lac_read_eval(FILE *, lreg_t *, struct timeval *, struct timeval *);
+int lac_read_eval(void *, lreg_t *, struct timeval *, struct timeval *);
 LAC_API static lreg_t proc_load(lreg_t args, lenv_t *env)
 {
   int r;
   char *file;
+  yyscan_t scan;
   lreg_t res;
   _EXPECT_ARGS(args, 1);
   lreg_t arg1 = eval(car(args), env);
@@ -698,7 +693,10 @@ LAC_API static lreg_t proc_load(lreg_t args, lenv_t *env)
   if ( fd == NULL )
     _ERROR_AND_RET("Could not open file");
 
-  while((r = lac_read_eval(fd, &res, NULL, NULL)) > 0);
+  sexpr_lex_init(&scan);
+  sexpr_set_in(fd, scan);
+  while((r = lac_read_eval(scan, &res, NULL, NULL)) > 0);
+  sexpr_lex_destroy(scan);
   fclose(fd);
   if ( r == 0 ) 
     return sym_true;
@@ -760,14 +758,15 @@ static void machine_init(void)
   sym_rest = register_symbol("&REST");
 }
 
-int lac_read_eval(FILE *infd, lreg_t *res, struct timeval *t1, struct timeval *t2)
+int lac_read_eval(void *scan, lreg_t *res, struct timeval *t1, struct timeval *t2)
 {
   int r;
   lreg_t tmp = NIL; 
 
-  r = lac_read(infd, &tmp);
-  if ( r <= 0 )
+  r = lac_read(&tmp, scan);
+  if ( r <= 0 ) {
     return r;
+  }
 
   if ( t1 != NULL )
     gettimeofday(t1, NULL);
@@ -792,15 +791,25 @@ static void modules_init()
 
 static void library_init(void)
 {
-  int r = 0; 
+  int r = 0;
+  yyscan_t scan;
   lreg_t res;
-  FILE *fd = fopen("sys.lac", "r");
+  FILE *fd;
+
+
+  fd = fopen("sys.lac", "r");
   if ( fd == NULL )
     fd = fopen(LAC_SYSDIR"/sys.lac", "r");
   if ( fd == NULL )
     lac_error("SYSTEM LIBRARY NOT FOUND", NIL);
 
-  while((r = lac_read_eval(fd, &res, NULL, NULL)) > 0);
+
+  sexpr_lex_init(&scan);
+  sexpr_set_in(fd, scan);
+
+  while((r = lac_read_eval(scan, &res, NULL, NULL)) > 0);
+
+  sexpr_lex_destroy(scan);
   fclose(fd);
 }
 
@@ -829,11 +838,16 @@ int lac_init(FILE *errfd)
 int lac_repl(FILE *infd, FILE *outfd, FILE *errfd)
 {
   int r;
+  yyscan_t scan;
   struct timeval t1, t2;
   lreg_t res = NIL;
+  
   if ( _setjmp(lac_error_jmp) != 0 )
     lac_error_print(errfd);
-  while((r = lac_read_eval(infd, &res, &t1, &t2)) > 0) {
+  
+  sexpr_lex_init(&scan);
+  sexpr_set_in(infd, scan);
+  while((r = lac_read_eval(scan, &res, &t1, &t2)) > 0) {
     if ( isatty(fileno(outfd)) )
       {
         fprintf(outfd, "=> "); 
@@ -844,6 +858,7 @@ int lac_repl(FILE *infd, FILE *outfd, FILE *errfd)
                t2.tv_usec >= t1.tv_usec ? t2.tv_usec - t1.tv_usec : t2.tv_usec + 1000000L - t1.tv_usec);
       }
   }
+  sexpr_lex_destroy(scan);
   return r;
 }
 

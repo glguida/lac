@@ -44,19 +44,22 @@ include_directories(SIGSEGV_INCLUDE_DIRS)
 find_package(BISON)
 find_package(FLEX)
 
-FLEX_TARGET(scanner lexer.l ${CMAKE_CURRENT_BINARY_DIR}/lexer.c
-            COMPILE_FLAGS "--header-file=lexer.h")
-BISON_TARGET(parser parser.y ${CMAKE_CURRENT_BINARY_DIR}/parser.c)
-ADD_FLEX_BISON_DEPENDENCY(scanner parser)
-SET_PROPERTY(SOURCE ${CMAKE_CURRENT_BINARY_DIR}/lexer.c
+FLEX_TARGET(sexpr_lex sexpr_lex.l ${CMAKE_CURRENT_BINARY_DIR}/sexpr_lex.c
+            COMPILE_FLAGS "--header-file=sexpr_lex.h")
+BISON_TARGET(sexpr_parse
+             sexpr_parse.y
+	     ${CMAKE_CURRENT_BINARY_DIR}/sexpr_parse.c)
+ADD_FLEX_BISON_DEPENDENCY(sexpr_lex sexpr_parse)
+SET_PROPERTY(SOURCE ${CMAKE_CURRENT_BINARY_DIR}/sexpr_lex.c
              PROPERTY COMPILE_FLAGS -Wno-unused-function)
 
 add_definitions(-DLAC_SYSDIR="${CMAKE_INSTALL_PREFIX}/share/lac")
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BIN_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}
+                    ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(laconic ${laconic_C_SRCS}
-                       ${BISON_parser_OUTPUTS}
-                       ${FLEX_scanner_OUTPUTS})
+                       ${BISON_sexpr_parse_OUTPUTS}
+                       ${FLEX_sexpr_lex_OUTPUTS})
 target_link_libraries(laconic sigsegv gc readline curses)
 set_target_properties(laconic PROPERTIES
 	LINKER_LANGUAGE C

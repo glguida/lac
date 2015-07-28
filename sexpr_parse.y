@@ -22,46 +22,46 @@
 #include <string.h>
 #include <gc/gc.h>
 #include "laconic.h"
+#include "parser.h" 
 
-int yylex(lreg_t *);
-void yyerror(lreg_t *, const char *);
-#define YYSTYPE lreg_t
+int sexpr_lex(lreg_t *, void *);
+
+void sexpr_error (lreg_t *lr, void *scanner, const char *msgp)  /* Called by yyparse on error */
+{
+}
 
 %}
 
+%defines
+%define api.prefix {sexpr_}
+%define api.pure full
+%define api.value.type { lreg_t }
 %parse-param { lreg_t *result }
-%lex-param { lreg_t *result }
+%param { void *scan }
+
+%token ENDOFFILE
 %token ATOM
 %token DELIMITER
 %token COMMA_AT
 
 %%
 
-input: | statement input ;
-;
+input: | input ENDOFFILE { return -1;}
+       | input sexpr     { *result = $2; YYACCEPT;};
 
-statement: sexp { $$ = $1;
-                  *result = $$;
-		  return 0xf00;
-}
-
-sexp:  ATOM { $$ = *result; }
-       | '\'' sexp { $$ = cons(sym_quote, cons($2, NIL)); }
-       | '`' sexp { $$ = cons(sym_quasiquote, cons($2, NIL)); }
-       | COMMA_AT sexp { $$ = cons(sym_splice, cons($2, NIL)); }
-       | ',' sexp { $$ = cons(sym_unquote, cons($2, NIL)); }
-       | '(' sexp '.' sexp ')' { $$ = cons($2,$4); }
+sexpr:  ATOM ;
+       | '\'' sexpr { $$ = cons(sym_quote, cons($2, NIL)); }
+       | '`' sexpr { $$ = cons(sym_quasiquote, cons($2, NIL)); }
+       | COMMA_AT sexpr { $$ = cons(sym_splice, cons($2, NIL)); }
+       | ',' sexpr { $$ = cons(sym_unquote, cons($2, NIL)); }
+       | '(' sexpr '.' sexpr ')' { $$ = cons($2,$4); }
        | '(' ')' { $$ = NIL; }
-       | list { $$ = $1; };
-;
+       | list { $$ = $1; }
 
-list: '(' sexp listelem ')' { $$ = cons($2,$3); }
+
+list: '(' sexpr listelem ')' { $$ = cons($2,$3); }
 ;
 listelem: /*EMPTY*/ { $$ = NIL; }
-          | sexp listelem { $$ = cons($1,$2); }
+          | sexpr listelem { $$ = cons($1,$2); }
 
 %%
-
-void yyerror (lreg_t *lr, const char *msgp)  /* Called by yyparse on error */
-{
-}

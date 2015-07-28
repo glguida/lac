@@ -19,8 +19,8 @@
 
 %{
 #define YYSTYPE lreg_t
+#define YY_DECL int yylex(YYSTYPE *lvalp, void *yyscanner)
 #define YY_NO_INPUT
-#define YY_DECL int yylex (lreg_t *lvalp)
 #include <ctype.h>
 #include <strings.h>
 #include <readline/readline.h>
@@ -28,8 +28,6 @@
 #include <gmp.h>
 #include "laconic.h"
 #include "parser.h"
-
-void ints_free(void *obj, void *);
 
 static int readline_getc(void)
 {
@@ -87,6 +85,8 @@ static int readline_getc(void)
 %}
 
 %option noyywrap
+%option reentrant
+%option prefix="sexpr_"
 
 WHITESPACE [\ \t\n]
 DIGIT [0-9]
@@ -101,7 +101,6 @@ SIGN [+|-]
 ;(.)*
 {WHITESPACE}
 
-
 {SIGN}?{DIGIT}+ {
 	unsigned long *n = lac_alloc(sizeof(unsigned long));
 
@@ -109,7 +108,7 @@ SIGN [+|-]
 	*n = strtol(yytext, (char **)NULL, 10);
 	if ( errno == ERANGE )
 		lac_error("Integer overflow in input", NIL);
-	*lvalp = lac_extty_box(LREG_INTEGER, n, sizeof(*n));
+        *lvalp = lac_extty_box(LREG_INTEGER, n, sizeof(*n));
 	return ATOM;
 }
 
@@ -148,6 +147,8 @@ SIGN [+|-]
 };
 
 ,@ { return COMMA_AT; }
+
+<<EOF>> { return ENDOFFILE; }
 
 . { return *yytext; }
 
