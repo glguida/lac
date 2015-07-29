@@ -76,10 +76,10 @@ lreg_t env_lookup(lenv_t *env, lreg_t key)
 
   r = ht_find(&env->htable, key, &res);
   if (r == 1) {
-    lac_error("Symbol not found", key);
+    raise_exception("Symbol not found", key);
   }
   if (r) {
-    lac_error("Internal error", key);
+    raise_exception("Internal error", key);
   }
   return res;
 }

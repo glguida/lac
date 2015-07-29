@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <setjmp.h>
 #include <gc/gc.h>
 #include "laconic.h"
 
@@ -113,6 +114,16 @@ static inline lreg_t get_proc_body(lreg_t lr)
 	return cdr(lr);
 }
 
+
+/*
+ * Private exception management. 
+ */
+
+#define _throw() do {				\
+	struct _lac_xcpt *p = _lac_xcpt;	\
+	_lac_xcpt = p->next;			\
+	longjmp(p->buf, 1);			\
+    } while(0)
 
 /*
  * Environment management.

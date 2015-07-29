@@ -1,29 +1,20 @@
 #include <stdio.h>
 #include <sys/time.h>
+#include <stdlib.h>
 #include <setjmp.h>
 #include <unistd.h>
 #include <signal.h>
 #include "laconic.h"
 
-jmp_buf lac_error_jmp;
-char *lac_errmsg;
-lreg_t lac_errlreg;
 lenv_t *null_env;
-
-void lac_error(char *arg, lreg_t errlr)
-{
-  lac_errmsg = arg;
-  lac_errlreg = errlr;
-  longjmp(lac_error_jmp, 1);
-}
 
 void lac_error_print(FILE *f)
 {
-  fprintf(f, "(*LAC-ERROR* \"%s", lac_errmsg);
-  if (lac_errlreg != NIL) 
+  fprintf(f, "(*LAC-ERROR* \"%s", lac_errmsg());
+  if (lac_errlreg() != NIL) 
     {
       fprintf(f, ": ");
-      sexpr_print(f, lac_errlreg);
+      sexpr_print(f, lac_errlreg());
     }
   fprintf(f, "\")\n");
 }
@@ -31,7 +22,7 @@ void lac_error_print(FILE *f)
 void
 sigint(int sig)
 {
-  lac_error("Interrupted", NIL);
+  raise_exception("Interrupted", NIL);
 }
 
 #define TDIFF_SEC(_a, _b)				\
@@ -49,13 +40,16 @@ int repl(FILE *infd, FILE *outfd, FILE *errfd)
 {
   int r;
   void *scan;
-  struct timeval t1, t2;
   lreg_t res = NIL;
+  struct timeval t1, t2;
 
-  if ( setjmp(lac_error_jmp) != 0 ) {
+ restart:
+  lac_on_error({
     lac_error_print(errfd);
+    sexpr_read_stop(scan);
     res = NIL;
-  }
+    goto restart;
+  });
 
   sexpr_read_start(infd, &scan);
   do {
@@ -71,12 +65,14 @@ int repl(FILE *infd, FILE *outfd, FILE *errfd)
 	fprintf(outfd, "=> "); 
 	sexpr_print(outfd, res); 
 	fprintf(outfd, "\n");
-	fprintf(outfd, "Evaluation took %ld seconds and %ld microseconds.\n",
+	fprintf(outfd,
+		"Evaluation took %ld seconds and %ld microseconds.\n",
 		TDIFF_SEC(&t1, &t2), TDIFF_USEC(&t1, &t2));
     }
   } while(r);
   sexpr_read_stop(scan);
 
+  lac_off_error();
   return r;
 }
 
@@ -84,13 +80,8 @@ int main()
 {
 
   signal(SIGINT, sigint);
-  if ( setjmp(lac_error_jmp) != 0 ) {
-      fprintf(stderr, "(LAC-SYSTEM \"ERROR IN SYSTEM LIBRARY: %s\")\n",
-	      lac_errmsg);
-      return -1;
-  }
-  null_env = lac_envalloc();
-  lac_init(null_env);
+
+  null_env = lac_init();
   repl(stdin, stdout, stderr);
   fprintf(stdout, "\ngoodbye!\n");
   return 0;

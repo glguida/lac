@@ -96,7 +96,7 @@ sexpr_read(lreg_t *res, void *yyscan)
     case 1: /* Syntax Error */
     case 2: /* Memory Exhaustion */
     default: /* Unknown */
-	lac_error("parser error", NIL);
+	raise_exception("parser error", NIL);
 	/* Not reached. */
 	return 0;
     }

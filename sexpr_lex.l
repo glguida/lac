@@ -107,7 +107,7 @@ SIGN [+|-]
 	errno = 0;
 	*n = strtol(yytext, (char **)NULL, 10);
 	if ( errno == ERANGE )
-		lac_error("Integer overflow in input", NIL);
+		raise_exception("Integer overflow in input", NIL);
         *lvalp = lac_extty_box(LREG_INTEGER, n, sizeof(*n));
 	return ATOM;
 }
@@ -123,7 +123,7 @@ SIGN [+|-]
 	errno = 0;
 	*n = strtol(yytext+2, (char **)NULL, 16);
 	if ( errno == ERANGE )
-		lac_error("Integer overflow in input", NIL);
+		raise_exception("Integer overflow in input", NIL);
 	*lvalp = lac_extty_box(LREG_INTEGER, n, sizeof(*n));
 	return ATOM;
 }

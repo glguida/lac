@@ -62,6 +62,25 @@ lac_extproc_register(lenv_t *env, const char *sym, lac_function_t f)
 
 
 /*
+ * Exception handling.
+ */
+
+__thread
+struct _lac_xcpt *_lac_xcpt;
+__thread
+char *_lac_xcpt_msg;
+__thread
+lreg_t _lac_xcpt_reg;
+
+inline void raise_exception(char *arg, lreg_t errlr)
+{
+
+    _lac_xcpt_msg = arg;
+    _lac_xcpt_reg = errlr;
+    _throw();
+}
+
+/*
  * Stack Overflow handling.
  */
 
@@ -70,7 +89,7 @@ static char extra_stack[16384];
 
 static void stackovf_continuation(void *arg1, void *arg2, void *arg3)
 {
-  lac_error(arg1, NIL);
+	raise_exception(arg1, NIL);
 }
 
 static void stackovf_handler()
@@ -139,7 +158,7 @@ lreg_t evargs(lreg_t list, lenv_t *env)
 
   if (list != NIL)
     {
-      lac_error("evargs: invalid arguments", list);
+      raise_exception("evargs: invalid arguments", list);
       head = NIL;
     }
   return head;
@@ -155,7 +174,7 @@ apply(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env)
   if (type == LREG_LLPROC)
     return lreg_to_llproc(proc)(args, env);
   if (type != LREG_MACRO && type != LREG_LAMBDA) {
-    lac_error("not a procedure", proc);
+    raise_exception("not a procedure", proc);
     return NIL;
   }
 
@@ -190,10 +209,10 @@ apply(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env)
   }
 
   if (is_cons(binds))
-	  lac_error("Undefined bindings", binds);
+	  raise_exception("Undefined bindings", binds);
 
   if (is_cons(args))
-	  lac_error("Too many arguments", args);
+	  raise_exception("Too many arguments", args);
 
   ret = evlist(body, &lenv);
 
@@ -267,7 +286,7 @@ static void _qquote(lreg_t sexp, lenv_t *env, lreg_t *first, lreg_t *last, int n
 	      lreg_t tosplice;
 
 	      if ( last == NULL )
-		lac_error("SPLICE expected on car only.", NIL);
+		raise_exception("SPLICE expected on car only.", NIL);
       
 	      tosplice = eval(car(cdr(sexp)), env);
 	      switch( lreg_raw_type (tosplice) )
@@ -304,7 +323,7 @@ static void _qquote(lreg_t sexp, lenv_t *env, lreg_t *first, lreg_t *last, int n
 	      if ( cdr(qqalast) == NIL  )
                 rplacd(qqalast, qqd);
 	      else if ( qqd != NIL )
-		lac_error("Dotted pairs in spliced list can be"
+		raise_exception("Dotted pairs in spliced list can be"
 			    " present only when splicing is at end of a list.", qqd);
 
 	      *first = qqa;
@@ -519,7 +538,7 @@ LAC_API static lreg_t proc_set(lreg_t args, lenv_t *env)
 
   r = env_set(env, arg1, arg2);
   if ( r < 0 )
-    lac_error("Error while setting env.", NIL);
+    raise_exception("Error while setting env.", NIL);
 
   if ( r == 0 )
     return arg2;
@@ -567,13 +586,17 @@ LAC_API static lreg_t proc_load(lreg_t args, lenv_t *env)
   if ( f == NULL )
     _ERROR_AND_RET("Could not open file");
 
-  
   sexpr_read_start(f, &scan);
+  lac_on_error({
+      sexpr_read_stop(scan);
+      _throw(); /* rethrow */
+    });
   do {
     r = sexpr_read(&res, scan);
     eval(res, env);
-    
   } while(r);
+
+  lac_off_error();
   sexpr_read_stop(scan);
   return sym_true;
 }
@@ -649,7 +672,7 @@ library_init(lenv_t *env)
   if ( f == NULL )
     f = fopen(LAC_SYSDIR"/sys.lac", "r");
   if ( f == NULL )
-    lac_error("SYSTEM LIBRARY NOT FOUND", NIL);
+    raise_exception("SYSTEM LIBRARY NOT FOUND", NIL);
 
   sexpr_read_start(f, &scan);
   do {
@@ -661,18 +684,23 @@ library_init(lenv_t *env)
   fclose(f);
 }
 
-void
-lac_init(lenv_t *env)
+lenv_t *
+lac_init(void)
 {
   sigset_t emptyset;
+  lenv_t *env;
   GC_init();
  
   sigemptyset(&emptyset); 
   sigprocmask(SIG_BLOCK, &emptyset, &mainsigset);
+
   stackoverflow_install_handler(stackovf_handler, extra_stack, 16384);
+  env = lac_envalloc();
   machine_init(env);
   modules_init(env);
   library_init(env);
+
+  return env;
 }
 
 lenv_t *

@@ -35,7 +35,7 @@ static lreg_t map_args(lreg_t lists)
 	{
 	  if ( is_cons(args) && car(args) == NIL )
 	      return NIL;
-	  lac_error("Syntax Error in mapcar", args);
+	  raise_exception("Syntax Error in mapcar", args);
 	}
 
       if ( outargs == NIL ) {

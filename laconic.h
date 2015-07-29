@@ -39,17 +39,6 @@ struct env;
 typedef struct env lenv_t;
 typedef uintptr_t lreg_t;
 
-/*
- * Null environment.
- */
-
-extern lenv_t *lac_null_env;
-
-/*
- * Error handling.
- */
-void lac_error(char *s, lreg_t) _noreturn;
-
 
 /*
  * LREG/Type model.
@@ -124,8 +113,10 @@ static inline unsigned lreg_type(lreg_t lr)
   }
 }
 
+void raise_exception(char *, lreg_t) _noreturn;
+
 lenv_t *lac_envalloc(void);
-void lac_init(lenv_t *env);
+lenv_t * lac_init(void);
 extern void *GC_malloc(size_t);
 #define lac_alloc GC_malloc
 
@@ -140,7 +131,7 @@ get_cons(lreg_t lr)
 {
   if (lreg_raw_type(lr) == LREG_CONS)
     return (struct cons *)lreg_raw_ptr(lr);
-  lac_error("not a cons", lr);
+  raise_exception("not a cons", lr);
 }
 
 
@@ -191,7 +182,7 @@ lreg_t intern_symbol(char *s);
 
 #define _ERROR_AND_RET(err)	\
   do {				\
-    lac_error(err, NIL);	\
+    raise_exception(err, NIL);	\
   } while ( 0 )
 
 #define __EXPECT_MIN_ARGS__(args, num)					\
@@ -227,6 +218,42 @@ LAC_API static lreg_t proc_##typename##p (lreg_t args, lenv_t *env)	\
     return sym_false;							\
 }
 #define LAC_TYPE_PFUNC(typename) proc_##typename##p
+
+/*
+ * Exception handling.
+ * Simple SJLJ for now(?).
+ */
+
+#include <setjmp.h>
+#include <stdlib.h>
+
+struct _lac_xcpt {
+  jmp_buf buf;
+  struct _lac_xcpt *next;
+};
+
+/* Per thread. Correct but ugh. */
+extern __thread struct _lac_xcpt *_lac_xcpt;
+extern __thread char *_lac_xcpt_msg;
+extern __thread lreg_t _lac_xcpt_reg;
+
+#define lac_errlreg() _lac_xcpt_reg
+#define lac_errmsg() _lac_xcpt_msg
+
+#define lac_on_error(_b) do {					\
+    struct _lac_xcpt *p = malloc(sizeof(struct _lac_xcpt));	\
+    p->next = _lac_xcpt;					\
+    _lac_xcpt = p;						\
+    if ( setjmp(p->buf) != 0 ) {				\
+      { _b };							\
+    }								\
+  } while(0)
+
+#define lac_off_error() do {			\
+    struct _lac_xcpt *p = _lac_xcpt;		\
+    _lac_xcpt = p->next;			\
+    free(p);					\
+  } while(0)
 
 
 /*
