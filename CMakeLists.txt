@@ -29,7 +29,6 @@ link_directories(${GC_LIBRARY_DIRS})
 find_library(LIBGC gc PATHS "${GC_LIBRARY_DIRS}")
 include_directories(${GC_INCLUDE_DIRS})
 set(laconic_LINK_FLAGS "${laconic_LINK_FLAGS} ${GC_LDFLAGS}")
-message("B IS ${laconic_LINK_FLAGS}")
 
 find_library(READLINE_LIBRARY NAMES libreadline)
 find_path(READLINE_INCLUDE_DIRS readline.h)
@@ -41,7 +40,7 @@ find_path(SIGSEGV_INCLUDE_DIRS sigsegv.h)
 link_directories(${SIGSEGV_LIBRARY_DIRS})
 include_directories(SIGSEGV_INCLUDE_DIRS)
 
-find_package(BISON)
+find_package(BISON 3.0)
 find_package(FLEX)
 
 FLEX_TARGET(sexpr_lex sexpr_lex.l ${CMAKE_CURRENT_BINARY_DIR}/sexpr_lex.c
