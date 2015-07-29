@@ -8,8 +8,9 @@
 jmp_buf lac_error_jmp;
 char *lac_errmsg;
 lreg_t lac_errlreg;
+lenv_t *null_env;
 
-void lac_error(const char *arg, lreg_t errlr)
+void lac_error(char *arg, lreg_t errlr)
 {
   lac_errmsg = arg;
   lac_errlreg = errlr;
@@ -62,8 +63,8 @@ int repl(FILE *infd, FILE *outfd, FILE *errfd)
       fprintf(outfd, "LAC>");
     r = sexpr_read(&res, scan);
 
-    gettimeofday(&t1, NULL);    
-    res = eval(res, lac_null_env);
+    gettimeofday(&t1, NULL);
+    res = eval(res, null_env);
     gettimeofday(&t2, NULL);
 
     if ( isatty(fileno(outfd)) ) {
@@ -88,7 +89,8 @@ int main()
 	      lac_errmsg);
       return -1;
   }
-  lac_init();
+  null_env = lac_envalloc();
+  lac_init(null_env);
   repl(stdin, stdout, stderr);
   fprintf(stdout, "\ngoodbye!\n");
   return 0;

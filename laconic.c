@@ -28,11 +28,6 @@
 #include "private.h"
 #include "laconic.h"
 
-/*
- * System environment
- */
-static lenv_t null_env;
-lenv_t *lac_null_env = &null_env;
 
 /*
  * System symbols
@@ -58,16 +53,11 @@ lreg_t register_symbol(const char *s)
   return intern_symbol(gcs);
 }
 
-/* Bind a value to a *global* variable. */
-static void bind_symbol(lreg_t sym, lreg_t val)
+void
+lac_extproc_register(lenv_t *env, const char *sym, lac_function_t f)
 {
-  (void)env_define(&null_env, sym, val);
-}
 
-int lac_extproc_register(const char *sym, lac_function_t f)
-{
-  bind_symbol(register_symbol(sym), llproc_to_lreg(f));
-  return 0;
+  env_define(env, register_symbol(sym), llproc_to_lreg(f));
 }
 
 
@@ -581,7 +571,7 @@ LAC_API static lreg_t proc_load(lreg_t args, lenv_t *env)
   sexpr_read_start(f, &scan);
   do {
     r = sexpr_read(&res, scan);
-    eval(res, &null_env);
+    eval(res, env);
     
   } while(r);
   sexpr_read_stop(scan);
@@ -593,61 +583,62 @@ LAC_API static lreg_t proc_load(lreg_t args, lenv_t *env)
  * Initialization Functions
  */
 
-static void machine_init(void)
+static void machine_init(lenv_t *env)
 {
   /* Init symtab. */
   hcreate(500);
 
   /* Init Null Env */
-  memset(&null_env, 0, sizeof(struct env));
+  memset(env, 0, sizeof(struct env));
 
   /* Lisp-style booleans.
      Can be changed into Scheme-scheme. */
   sym_false = NIL;
   sym_true = register_symbol("T");
-  bind_symbol(sym_true, sym_true); /* Tautology. */
+  env_define(env, sym_true, sym_true); /* Tautology. */
 
   sym_quote = register_symbol("QUOTE");
-  bind_symbol(sym_quote, llproc_to_lreg(proc_quote));
-  bind_symbol(register_symbol("COND"), llproc_to_lreg(proc_cond));
-  bind_symbol(register_symbol("LAMBDA"), llproc_to_lreg(proc_lambda));
-  bind_symbol(register_symbol("DEFINE"), llproc_to_lreg(proc_define));
-  bind_symbol(register_symbol("MACRO"), llproc_to_lreg(proc_macro));
-  bind_symbol(register_symbol("LABELS"), llproc_to_lreg(proc_labels));
+  env_define(env, sym_quote, llproc_to_lreg(proc_quote));
 
-  bind_symbol(register_symbol("CONS"), llproc_to_lreg(proc_cons));
-  bind_symbol(register_symbol("CAR"), llproc_to_lreg(proc_car));
-  bind_symbol(register_symbol("CDR"), llproc_to_lreg(proc_cdr));
-  bind_symbol(register_symbol("RPLACA"), llproc_to_lreg(proc_rplaca));
-  bind_symbol(register_symbol("RPLACD"), llproc_to_lreg(proc_rplacd));
-  bind_symbol(register_symbol("EQ"), llproc_to_lreg(proc_eq));
-  bind_symbol(register_symbol("APPLY"), llproc_to_lreg(proc_apply));
-  bind_symbol(register_symbol("LOAD"), llproc_to_lreg(proc_load));
-  bind_symbol(register_symbol("SET"), llproc_to_lreg(proc_set));
-  bind_symbol(register_symbol("GENSYM"), llproc_to_lreg(proc_gensym));
-  bind_symbol(register_symbol("CONSP"), llproc_to_lreg(LAC_TYPE_PFUNC(cons)));
-  bind_symbol(register_symbol("SYMBOLP"), llproc_to_lreg(LAC_TYPE_PFUNC(symbol)));
+  lac_extproc_register(env, "COND", proc_cond);
+  lac_extproc_register(env, "LAMBDA", proc_lambda);
+  lac_extproc_register(env, "DEFINE", proc_define);
+  lac_extproc_register(env, "MACRO", proc_macro);
+  lac_extproc_register(env, "LABELS", proc_labels);
+
+  lac_extproc_register(env,"CONS", proc_cons);
+  lac_extproc_register(env,"CAR", proc_car);
+  lac_extproc_register(env,"CDR", proc_cdr);
+  lac_extproc_register(env,"RPLACA", proc_rplaca);
+  lac_extproc_register(env,"RPLACD", proc_rplacd);
+  lac_extproc_register(env,"EQ", proc_eq);
+  lac_extproc_register(env,"APPLY", proc_apply);
+  lac_extproc_register(env,"LOAD", proc_load);
+  lac_extproc_register(env,"SET", proc_set);
+  lac_extproc_register(env,"GENSYM", proc_gensym);
+  lac_extproc_register(env,"CONSP", LAC_TYPE_PFUNC(cons));
+  lac_extproc_register(env,"SYMBOLP", LAC_TYPE_PFUNC(symbol));
 
   sym_quasiquote = register_symbol("QUASIQUOTE");
-  bind_symbol(sym_quasiquote, llproc_to_lreg(proc_quasiquote));
+  env_define(env, sym_quasiquote, llproc_to_lreg(proc_quasiquote));
   sym_unquote = register_symbol("UNQUOTE");
   sym_splice = register_symbol("SPLICE");
   sym_rest = register_symbol("&REST");
 }
 
-void map_init(void);
-void int_init(void);
-void string_init(void);
+void map_init(lenv_t *env);
+void int_init(lenv_t *env);
+void string_init(lenv_t *env);
 static void
-modules_init()
+modules_init(lenv_t *env)
 {
-  int_init();
-  string_init();
-  map_init();
+  int_init(env);
+  string_init(env);
+  map_init(env);
 }
 
 static void
-library_init(void)
+library_init(lenv_t *env)
 {
   int r;
   FILE *f;  
@@ -663,16 +654,15 @@ library_init(void)
   sexpr_read_start(f, &scan);
   do {
     r = sexpr_read(&res, scan);
-    eval(res, &null_env);
+    eval(res, env);
   } while(r);
   sexpr_read_stop(scan);
 
   fclose(f);
 }
 
-
 void
-lac_init(void)
+lac_init(lenv_t *env)
 {
   sigset_t emptyset;
   GC_init();
@@ -680,10 +670,15 @@ lac_init(void)
   sigemptyset(&emptyset); 
   sigprocmask(SIG_BLOCK, &emptyset, &mainsigset);
   stackoverflow_install_handler(stackovf_handler, extra_stack, 16384);
-  machine_init();
-  modules_init();
-  library_init();
+  machine_init(env);
+  modules_init(env);
+  library_init(env);
 }
 
+lenv_t *
+lac_envalloc(void)
+{
+  return GC_malloc(sizeof(lenv_t));
+}
 
 

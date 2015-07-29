@@ -111,8 +111,8 @@ LAC_API static lreg_t proc_reduce(lreg_t args, lenv_t *env)
   return acc;
 }
 
-void map_init(void)
+void map_init(lenv_t *env)
 {
-  lac_extproc_register("MAPCAR", proc_mapcar);
-  lac_extproc_register("REDURE", proc_reduce);
+  lac_extproc_register(env, "MAPCAR", proc_mapcar);
+  lac_extproc_register(env, "REDURE", proc_reduce);
 }

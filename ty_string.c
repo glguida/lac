@@ -89,11 +89,11 @@ static lac_exttype_t string_ty = {
 	.eq = string_eq
 };
 
-void string_init(void)
+void string_init(lenv_t *env)
 {
   lac_extty_register(LREG_STRING, &string_ty);
-  lac_extproc_register("STRINGP", LAC_TYPE_PFUNC(string));
-  lac_extproc_register("STRING-LESS", proc_string_lessp);
-  lac_extproc_register("STRING-GREATER", proc_string_greaterp);
-  lac_extproc_register("STRING-EQUAL", proc_string_equal);
+  lac_extproc_register(env, "STRINGP", LAC_TYPE_PFUNC(string));
+  lac_extproc_register(env, "STRING-LESS", proc_string_lessp);
+  lac_extproc_register(env, "STRING-GREATER", proc_string_greaterp);
+  lac_extproc_register(env, "STRING-EQUAL", proc_string_equal);
 }

@@ -186,17 +186,17 @@ LAC_API static lreg_t proc_lesseq(lreg_t args, lenv_t *env)
 
 LAC_DEFINE_TYPE_PFUNC(integer, LREG_INTEGER);
 
-void int_init(void)
+void int_init(lenv_t *env)
 {
   lac_extty_register(LREG_INTEGER, &int_ty);
-  lac_extproc_register("INTEGERP",LAC_TYPE_PFUNC(integer));
-  lac_extproc_register("+", proc_plus);
-  lac_extproc_register("-", proc_minus);
-  lac_extproc_register("*", proc_star);
-  lac_extproc_register("%", proc_mod);
-  lac_extproc_register("/", proc_div);
-  lac_extproc_register(">", proc_greater);
-  lac_extproc_register(">=", proc_greatereq);
-  lac_extproc_register("<", proc_less);
-  lac_extproc_register("<=", proc_lesseq);
+  lac_extproc_register(env, "INTEGERP",LAC_TYPE_PFUNC(integer));
+  lac_extproc_register(env, "+", proc_plus);
+  lac_extproc_register(env, "-", proc_minus);
+  lac_extproc_register(env, "*", proc_star);
+  lac_extproc_register(env, "%", proc_mod);
+  lac_extproc_register(env, "/", proc_div);
+  lac_extproc_register(env, ">", proc_greater);
+  lac_extproc_register(env, ">=", proc_greatereq);
+  lac_extproc_register(env, "<", proc_less);
+  lac_extproc_register(env, "<=", proc_lesseq);
 }

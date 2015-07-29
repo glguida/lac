@@ -48,7 +48,7 @@ extern lenv_t *lac_null_env;
 /*
  * Error handling.
  */
-void lac_error(const char *s, lreg_t) _noreturn;
+void lac_error(char *s, lreg_t) _noreturn;
 
 
 /*
@@ -124,7 +124,8 @@ static inline unsigned lreg_type(lreg_t lr)
   }
 }
 
-void lac_init(void);
+lenv_t *lac_envalloc(void);
+void lac_init(lenv_t *env);
 extern void *GC_malloc(size_t);
 #define lac_alloc GC_malloc
 
@@ -155,7 +156,7 @@ typedef lreg_t (*lac_function_t)(lreg_t args, lenv_t *env);
  * Extension
  */
 
-int lac_extproc_register(const char *sym, lac_function_t f);
+void lac_extproc_register(lenv_t *env, const char *sym, lac_function_t f);
 
 int lac_extty_register(unsigned typeno, lac_exttype_t *extty);
 lreg_t lac_extty_box(unsigned typeno, void *ptr, size_t size);
