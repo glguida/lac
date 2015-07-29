@@ -79,7 +79,7 @@ LAC_API static lreg_t proc_mapcar(lreg_t args, lenv_t *env)
       mapargs = map_args(lists);
       if ( mapargs == NIL )
         break;
-      outelm = apply(fn, mapargs, env);
+      outelm = apply(fn, mapargs, env, env);
       
       if ( outlist == NIL ) {
         outlist = tail = cons(outelm, NIL);
@@ -106,7 +106,7 @@ LAC_API static lreg_t proc_reduce(lreg_t args, lenv_t *env)
   list = cdr(list);
 
   for ( ; list != NIL; list = cdr(list) )
-      acc = apply(fn, cons(acc, cons(car(list), NIL)), env);
+	  acc = apply(fn, cons(acc, cons(car(list), NIL)), env, env);
 
   return acc;
 }

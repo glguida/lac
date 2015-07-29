@@ -155,7 +155,8 @@ lreg_t evargs(lreg_t list, lenv_t *env)
   return head;
 }
 
-static lreg_t apply2(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env)
+lreg_t
+apply(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   lenv_t lenv;
   lreg_t ret, lproc, binds, body, arg;
@@ -214,14 +215,10 @@ static lreg_t apply2(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env)
   return ret;
 }
 
-lreg_t apply(lreg_t proc, lreg_t args, lenv_t *env)
-{
-	return apply2(proc, args, env, env);
-}
-
 lreg_t eval(lreg_t sexp, lenv_t *env)
 {
   lreg_t ans;
+
   switch (lreg_raw_type(sexp))
     {
     case LREG_NIL:
@@ -231,7 +228,7 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
       ans = env_lookup(env, sexp);
       break;
     case LREG_CONS:
-      ans = apply(eval(car(sexp), env), cdr(sexp), env);
+      ans = apply(eval(car(sexp), env), cdr(sexp), env, env);
       break;
     default:
       ans = sexp;
@@ -432,7 +429,7 @@ LAC_API static lreg_t proc_apply(lreg_t args, lenv_t *env)
   lreg_t arg1 = eval(car(args), env);
   lreg_t arg2 = eval(car(cdr(args)), env);
 
-  return apply2(arg1, arg2, NULL, env);
+  return apply(arg1, arg2, NULL, env);
 }
 
 /* Special Form */
