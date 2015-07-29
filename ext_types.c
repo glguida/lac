@@ -50,7 +50,7 @@ size_t lac_extty_unbox(lreg_t lr, void **ptr)
 	return treg->size;
 }
 
-int lacint_extty_print(FILE *fd, lreg_t lr)
+int lac_extty_print(FILE *fd, lreg_t lr)
 {
 	unsigned typeno = lac_extty_get_type(lr);
 	if ( EXTTY_IS_VALID(typeno)

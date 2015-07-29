@@ -18,25 +18,21 @@
 */
 
 #define _GNU_SOURCE
-#define _LAC_INTERNAL
 #include <stdio.h>
+#include <stdlib.h>
 #include <search.h>
 #include <string.h>
-#include <setjmp.h>
-#include <sys/time.h>
 #include <gc/gc.h>
 #include <signal.h>
 #include <sigsegv.h>
 #include "private.h"
 #include "laconic.h"
 
-
 /*
  * System environment
  */
-lenv_t null_env;
-char *lac_errmsg;
-lreg_t lac_errlreg;
+static lenv_t null_env;
+lenv_t *lac_null_env = &null_env;
 
 /*
  * System symbols
@@ -54,37 +50,24 @@ lreg_t sym_rest;
  * Interface
  */
 
+lreg_t register_symbol(const char *s)
+{
+  unsigned len = strlen(s) + 1;
+  char *gcs = GC_malloc(len);
+  strncpy(gcs, s, len);
+  return intern_symbol(gcs);
+}
+
+/* Bind a value to a *global* variable. */
+static void bind_symbol(lreg_t sym, lreg_t val)
+{
+  (void)env_define(&null_env, sym, val);
+}
+
 int lac_extproc_register(const char *sym, lac_function_t f)
 {
   bind_symbol(register_symbol(sym), llproc_to_lreg(f));
   return 0;
-}
-
-
-/*
- * Error handling.
- */
-
-jmp_buf lac_error_jmp;
-void lac_print(FILE *fd, lreg_t);
-
-
-void lac_error(char *arg, lreg_t errlr)
-{
-  lac_errmsg = arg;
-  lac_errlreg = errlr;
-  _longjmp(lac_error_jmp, 1);
-}
-
-void lac_error_print(FILE *f)
-{
-  fprintf(f, "(*LAC-ERROR* \"%s", lac_errmsg);
-  if (lac_errlreg != NIL) 
-    {
-      fprintf(f, ": ");
-      lac_print(f, lac_errlreg);
-    }
-  fprintf(f, "\")");
 }
 
 
@@ -108,93 +91,6 @@ static void stackovf_handler()
 
 
 /*
- * Read
- */
-
-#include "sexpr_lex.h"
-#include "sexpr_parse.h"
-
-int lac_read(lreg_t *res, void *yyscan)
-{
-  int r;
-
-  r = sexpr_parse(res, yyscan);
-
-  switch ( r ) {
-  case 0: /* Statement */
-    return 1;
-
-  case -1: /* EOF */
-    return 0; 
-
-  case 1: /* Syntax Error */
-  case 2: /* Memory Exhaustion */
-  default: /* Unknown */
-    lac_error("parser error", NIL);
-    /* Not reached. */
-    return 0;
-  }
-}
-
-
-/*
- * Print
- */
-
-void lac_print_cons(FILE *fd, lreg_t lr)
-{
-  lreg_t a = car(lr);
-  lreg_t d = cdr(lr);
-  lac_print(fd, a);
-
-  if (d == NIL)
-    {
-      fprintf(fd, ") ");
-      return;
-    }
-
-  if (lreg_raw_type(d) == LREG_CONS)
-    lac_print_cons(fd, d);
-  else
-    {
-      fprintf(fd, ". ");
-      lac_print(fd, cdr(lr));
-      fprintf(fd, ") ");
-    }
-}
-
-void lac_print(FILE *fd, lreg_t lr)
-{
-  switch ( lreg_type(lr) )
-    {
-    case LREG_NIL:
-      fprintf(fd, "() ");
-      break;
-    case LREG_SYMBOL:
-      fprintf(fd, "%s ", (char *)lreg_raw_ptr(lr));
-      break;
-    case LREG_CONS:
-      fprintf(fd, "( ");
-      lac_print_cons(fd, lr);
-      break;
-    case LREG_MACRO:
-      fprintf(fd, "<#MACRO> ");
-      break;
-    case LREG_LAMBDA:
-      fprintf(fd, "<#LAMBDA> ");
-      break;
-    case LREG_LLPROC:
-      fprintf(fd, "<#LLPROC> ");
-      break;
-    default:
-      if ( !lacint_extty_print(fd, lr) )
-	fprintf(fd, "<??? %d>",(int)lreg_type(lr));
-    }
-  return;
-}
-
-
-/*
  * Basic procedures.
  */
 
@@ -212,12 +108,6 @@ lreg_t intern_symbol(char *s)
   return lreg_raw(lreg_raw_ptr((lreg_t)r->key),LREG_SYMBOL);
 }
 
-/* Bind a value to a *global* variable. */
-void bind_symbol(lreg_t sym, lreg_t val)
-{
-  (void)env_define(&null_env, sym, val);
-}
-
 lreg_t cons(lreg_t a, lreg_t d)
 {
   struct cons *c = GC_malloc(sizeof(struct cons));
@@ -226,13 +116,16 @@ lreg_t cons(lreg_t a, lreg_t d)
   return lreg_raw(c, LREG_CONS);
 }
 
+
 /*
  * Eval/Apply
  */
 
-lreg_t evlist(lreg_t list, lenv_t *env)
+static lreg_t
+evlist(lreg_t list, lenv_t *env)
 {
   lreg_t ret = NIL;
+
   for (; list != NIL; list = cdr(list))
       ret = eval(car(list), env);
   return ret;
@@ -347,10 +240,10 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
   return ans;
 }
 
+
 /*
  * Embedded  Procedures
  */
-
 /* Special Form */
 LAC_API static lreg_t proc_quote(lreg_t args, lenv_t *env)
 {
@@ -548,8 +441,7 @@ LAC_API static lreg_t proc_cond(lreg_t args, lenv_t *env)
   /* Undefinite number of arguments */
   lreg_t cond = NIL;
 
-  while ( args != NIL )
-    {
+  while ( args != NIL ) {
       lreg_t test = car(args);
       if ( !is_cons(test) )
 	_ERROR_AND_RET("Syntax error in cond");
@@ -557,15 +449,11 @@ LAC_API static lreg_t proc_cond(lreg_t args, lenv_t *env)
       cond = eval(car(test), env);
       /* Lisp-specific! Scheme (as for R5RS) checks for #t,
        * though guile doesn't.  */
-      if ( cond != NIL )
-	{
-	  if ( cdr(test) == NIL )
-	    return cond;
-	  else
-	    return evlist(cdr(test), env);
-        }
+      if ( cond != NIL ) {
+	  return cdr(test) == NIL ? cond : evlist(cdr(test), env);
+      }
       args = cdr(args);
-    }
+  }
   return NIL;
 }
 
@@ -674,47 +562,39 @@ LAC_API static lreg_t proc_gensym(lreg_t args, lenv_t *env)
   return ret;
 }
 
-int lac_read_eval(void *, lreg_t *, struct timeval *, struct timeval *);
 LAC_API static lreg_t proc_load(lreg_t args, lenv_t *env)
 {
   int r;
+  FILE *f;
   char *file;
-  yyscan_t scan;
-  lreg_t res;
+  void *scan;
+  lreg_t res, arg1;
   _EXPECT_ARGS(args, 1);
-  lreg_t arg1 = eval(car(args), env);
 
+  arg1 = eval(car(args), env);
   if ( lreg_type(arg1) != LREG_STRING )
     _ERROR_AND_RET("Syntax error in load");
 
   lac_extty_unbox(arg1, (void **)&file);
-
-  FILE *fd = fopen((char *)file, "r");
-  if ( fd == NULL )
+  f = fopen((char *)file, "r");
+  if ( f == NULL )
     _ERROR_AND_RET("Could not open file");
 
-  sexpr_lex_init(&scan);
-  sexpr_set_in(fd, scan);
-  while((r = lac_read_eval(scan, &res, NULL, NULL)) > 0);
-  sexpr_lex_destroy(scan);
-  fclose(fd);
-  if ( r == 0 ) 
-    return sym_true;
-  else 
-    return NIL;
+  
+  sexpr_read_start(f, &scan);
+  do {
+    r = sexpr_read(&res, scan);
+    eval(res, &null_env);
+    
+  } while(r);
+  sexpr_read_stop(scan);
+  return sym_true;
 }
 
 
 /*
  * Initialization Functions
  */
-lreg_t register_symbol(const char *s)
-{
-  unsigned len = strlen(s) + 1;
-  char *gcs = GC_malloc(len);
-  strncpy(gcs, s, len);
-  return intern_symbol(gcs);
-}
 
 static void machine_init(void)
 {
@@ -758,63 +638,44 @@ static void machine_init(void)
   sym_rest = register_symbol("&REST");
 }
 
-int lac_read_eval(void *scan, lreg_t *res, struct timeval *t1, struct timeval *t2)
-{
-  int r;
-  lreg_t tmp = NIL; 
-
-  r = lac_read(&tmp, scan);
-  if ( r <= 0 ) {
-    return r;
-  }
-
-  if ( t1 != NULL )
-    gettimeofday(t1, NULL);
-
-  *res = eval(tmp, &null_env);
-    
-  if ( t2 != NULL )
-    gettimeofday(t2, NULL);
-
-  return 1;
-}
-
 void map_init(void);
 void int_init(void);
 void string_init(void);
-static void modules_init()
+static void
+modules_init()
 {
   int_init();
   string_init();
   map_init();
 }
 
-static void library_init(void)
+static void
+library_init(void)
 {
-  int r = 0;
-  yyscan_t scan;
+  int r;
+  FILE *f;  
   lreg_t res;
-  FILE *fd;
+  void *scan;
 
-
-  fd = fopen("sys.lac", "r");
-  if ( fd == NULL )
-    fd = fopen(LAC_SYSDIR"/sys.lac", "r");
-  if ( fd == NULL )
+  f = fopen("sys.lac", "r");
+  if ( f == NULL )
+    f = fopen(LAC_SYSDIR"/sys.lac", "r");
+  if ( f == NULL )
     lac_error("SYSTEM LIBRARY NOT FOUND", NIL);
 
+  sexpr_read_start(f, &scan);
+  do {
+    r = sexpr_read(&res, scan);
+    eval(res, &null_env);
+  } while(r);
+  sexpr_read_stop(scan);
 
-  sexpr_lex_init(&scan);
-  sexpr_set_in(fd, scan);
-
-  while((r = lac_read_eval(scan, &res, NULL, NULL)) > 0);
-
-  sexpr_lex_destroy(scan);
-  fclose(fd);
+  fclose(f);
 }
 
 
-int lac_init(FILE *errfd)
+void
+lac_init(void)
 {
   sigset_t emptyset;
   GC_init();
@@ -824,48 +685,8 @@ int lac_init(FILE *errfd)
   stackoverflow_install_handler(stackovf_handler, extra_stack, 16384);
   machine_init();
   modules_init();
-  if ( _setjmp(lac_error_jmp) != 0 )
-    {
-      fprintf(errfd, "(LAC-SYSTEM \"ERROR IN SYSTEM LIBRARY: %s\")\n", lac_errmsg);
-      return -1;
-    }
-  else
-    library_init();
-
-  return 0;
+  library_init();
 }
 
-int lac_repl(FILE *infd, FILE *outfd, FILE *errfd)
-{
-  int r;
-  yyscan_t scan;
-  struct timeval t1, t2;
-  lreg_t res = NIL;
-  
-  if ( _setjmp(lac_error_jmp) != 0 )
-    lac_error_print(errfd);
-  
-  sexpr_lex_init(&scan);
-  sexpr_set_in(infd, scan);
-  while((r = lac_read_eval(scan, &res, &t1, &t2)) > 0) {
-    if ( isatty(fileno(outfd)) )
-      {
-        fprintf(outfd, "=> "); 
-        lac_print(outfd, res); 
-        fprintf(outfd, "\n");
-        fprintf(outfd, "Evaluation took %ld seconds and %ld microseconds.\n",
-               t2.tv_usec >= t1.tv_usec ? t2.tv_sec - t1.tv_sec : t2.tv_sec - t1.tv_sec - 1, 
-               t2.tv_usec >= t1.tv_usec ? t2.tv_usec - t1.tv_usec : t2.tv_usec + 1000000L - t1.tv_usec);
-      }
-  }
-  sexpr_lex_destroy(scan);
-  return r;
-}
 
-int main()
-{
-  lac_init(stderr);
-  lac_repl(stdin, stdout, stderr);
-  fprintf(stdout, "\ngoodbye!\n");
-  return 0;
-}
+

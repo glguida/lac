@@ -30,11 +30,25 @@
 #define _noreturn
 #endif
 
+
 /*
  * Basic Types.
  */
 
+struct env;
+typedef struct env lenv_t;
 typedef uintptr_t lreg_t;
+
+/*
+ * Null environment.
+ */
+
+extern lenv_t *lac_null_env;
+
+/*
+ * Error handling.
+ */
+void lac_error(const char *s, lreg_t) _noreturn;
 
 
 /*
@@ -110,12 +124,9 @@ static inline unsigned lreg_type(lreg_t lr)
   }
 }
 
-struct env;
-typedef struct env lenv_t;
-
+void lac_init(void);
 extern void *GC_malloc(size_t);
 #define lac_alloc GC_malloc
-void lac_error(char *, lreg_t) _noreturn;
 
 struct cons
 {
@@ -151,6 +162,8 @@ lreg_t lac_extty_box(unsigned typeno, void *ptr, size_t size);
 size_t lac_extty_unbox(lreg_t lr, void **ptr);
 unsigned lac_extty_get_type(lreg_t lr);
 size_t lac_extty_get_size(lreg_t lr);
+int lac_extty_print(FILE * fd, lreg_t lr);
+
 
 /*
  * Lisp Machine
@@ -213,5 +226,15 @@ LAC_API static lreg_t proc_##typename##p (lreg_t args, lenv_t *env)	\
     return sym_false;							\
 }
 #define LAC_TYPE_PFUNC(typename) proc_##typename##p
+
+
+/*
+ * Representations
+ */
+
+void sexpr_read_start(FILE *f, void **yyscan);
+int sexpr_read(lreg_t *res, void *yyscan);
+void sexpr_read_stop(void *yyscan);
+void sexpr_print(FILE *f, lreg_t lr);  
 
 #endif /* LACONIC_H */

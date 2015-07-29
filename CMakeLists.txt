@@ -18,7 +18,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
 set(laconic_VERSION 0.1)
 
 set(laconic_C_SRCS
- laconic.c ext_types.c env.c map.c ty_string.c ty_int.c
+ lac.c laconic.c ext_types.c env.c map.c ty_string.c ty_int.c
 )
 
 set(laconic_FILES)

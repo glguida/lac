@@ -38,8 +38,6 @@
 #define is_lambda(lr) (lreg_raw_type(lr) == LREG_LAMBDA)
 #define is_macro(lr) (lreg_raw_type(lr) == LREG_MACRO)
 
-
-int lacint_extty_print(FILE * fd, lreg_t lr);
 int lacint_extty_eq(lreg_t arg1, lreg_t arg2, lreg_t * ans);
 
 #define HT_SIZE 32
@@ -115,8 +113,6 @@ static inline lreg_t get_proc_body(lreg_t lr)
 	return cdr(lr);
 }
 
-void bind_symbol(lreg_t sym, lreg_t val);
-lreg_t register_symbol(const char *s);
 
 /*
  * Environment management.
@@ -127,5 +123,6 @@ lreg_t env_lookup(lenv_t * env, lreg_t key);
 int env_define(lenv_t * env, lreg_t key, lreg_t value);
 int env_set(lenv_t * env, lreg_t key, lreg_t value);
 void env_pushnew(lenv_t * env, lenv_t * new);
+
 
 #endif				/* PRIVATE_H */
