@@ -161,7 +161,9 @@ evbind(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env, lenv_t *lenv)
 {
   lreg_t lproc, binds, body, arg;
 
-  env_pushnew(get_closure_env(proc), lenv);
+  /* env == lenv on TCO */
+  if (env != lenv)
+	  env_pushnew(get_closure_env(proc), lenv);
 
   lproc = get_closure_proc(proc);
   binds = get_proc_binds(lproc);
@@ -677,7 +679,6 @@ static void machine_init(lenv_t *env)
   sym_quote = register_symbol("QUOTE");
   env_define(env, sym_quote, llproc_to_lreg(proc_quote));
   sym_cond = register_symbol("COND");
-  env_define(env, sym_cond, llproc_to_lreg(proc_embedded));
 
   lac_extproc_register(env, "LAMBDA", proc_lambda);
   lac_extproc_register(env, "DEFINE", proc_define);
