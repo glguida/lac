@@ -602,11 +602,6 @@ LAC_API static lreg_t proc_set(lreg_t args, lenv_t *env)
 LAC_DEFINE_TYPE_PFUNC(cons, LREG_CONS);
 LAC_DEFINE_TYPE_PFUNC(symbol, LREG_SYMBOL);
 
-LAC_API static lreg_t proc_embedded(lreg_t args, lenv_t *env)
-{
-	raise_exception("Lac bug! Embedded procedure called!\n", NIL);
-}
-
 LAC_API static lreg_t proc_gensym(lreg_t args, lenv_t *env)
 {
   #define GENSYM "#GSYM"
