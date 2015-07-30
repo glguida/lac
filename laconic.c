@@ -34,6 +34,7 @@
  */
 lreg_t sym_true;
 lreg_t sym_false;
+lreg_t sym_cond;
 lreg_t sym_quote;
 lreg_t sym_quasiquote;
 lreg_t sym_unquote;
@@ -130,15 +131,6 @@ lreg_t cons(lreg_t a, lreg_t d)
  * Eval/Apply
  */
 
-static lreg_t
-evlist(lreg_t list, lenv_t *env)
-{
-  lreg_t ret = NIL;
-
-  for (; list != NIL; list = cdr(list))
-      ret = eval(car(list), env);
-  return ret;
-}
 
 lreg_t evargs(lreg_t list, lenv_t *env)
 {
@@ -164,24 +156,12 @@ lreg_t evargs(lreg_t list, lenv_t *env)
   return head;
 }
 
-lreg_t
-apply(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env)
+static lreg_t
+evbind(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env, lenv_t *lenv)
 {
-  lenv_t lenv;
-  lreg_t ret, lproc, binds, body, arg;
-  unsigned type = lreg_raw_type(proc);
+  lreg_t lproc, binds, body, arg;
 
-  if (type == LREG_LLPROC)
-    return lreg_to_llproc(proc)(args, env);
-  if (type != LREG_MACRO && type != LREG_LAMBDA) {
-    raise_exception("not a procedure", proc);
-    return NIL;
-  }
-
-  if (type == LREG_MACRO)
-    argenv = NULL;
-
-  env_pushnew(get_closure_env(proc), &lenv);
+  env_pushnew(get_closure_env(proc), lenv);
 
   lproc = get_closure_proc(proc);
   binds = get_proc_binds(lproc);
@@ -193,7 +173,7 @@ apply(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env)
 	  arg = car(args);
 	  if (argenv)
 		  arg = eval(arg, env);
-	  env_define(&lenv, car(binds), arg);
+	  env_define(lenv, car(binds), arg);
 	  binds = cdr(binds);
 	  args = cdr(args);
   }
@@ -203,7 +183,7 @@ apply(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env)
 	  arg = args;
 	  if (argenv)
 		  arg = evargs(arg, argenv);
-	  env_define(&lenv, car(binds), arg);
+	  env_define(lenv, car(binds), arg);
 	  binds = cdr(binds);
 	  args = NIL;
   }
@@ -214,20 +194,20 @@ apply(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env)
   if (is_cons(args))
 	  raise_exception("Too many arguments", args);
 
-  ret = evlist(body, &lenv);
+  return body;
+}
 
-  if (type == LREG_MACRO) {
-    /* Macro expand hook? */
-    ret = eval(ret, env);
-  }
-
-  return ret;
+lreg_t
+apply(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env)
+{
+  raise_exception("apply called", NIL);
 }
 
 lreg_t eval(lreg_t sexp, lenv_t *env)
 {
   lreg_t ans;
-
+  lenv_t lenv;
+ tco:
   switch (lreg_raw_type(sexp))
     {
     case LREG_NIL:
@@ -236,9 +216,75 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
     case LREG_SYMBOL:
       ans = env_lookup(env, sexp);
       break;
-    case LREG_CONS:
-      ans = apply(eval(car(sexp), env), cdr(sexp), env, env);
+    case LREG_CONS: {
+      lreg_t proc = car(sexp), args = cdr(sexp);
+      unsigned type;
+      lreg_t list, next;
+      ans = NIL;
+
+      /* COND: embedded procedure */
+      if (proc == sym_cond) {
+	      lreg_t cond = NIL;
+
+	      list = NIL; /* Default return  */
+	      while ( args != NIL ) {
+
+		      lreg_t test = car(args);
+		      if ( !is_cons(test) )
+			      _ERROR_AND_RET("Syntax error in cond");
+
+		      cond = eval(car(test), env);
+		      /* Lisp-specific! Scheme (as for R5RS) checks for #t,
+		       * though guile doesn't.  */
+		      if ( cond == NIL ) {
+			      args = cdr(args);
+			      continue;
+		      }
+		      list = cdr(test);
+		      break;
+	      }
+	      for (next = cdr(list); list != NIL; list = next, next = cdr(next)) {
+		      if (next == NIL) {
+			      sexp = car(list);
+			      env = env;;
+			      goto tco;
+		      }
+		      ans = eval(car(list), env);
+	      }
+
+      } else {
+	      proc = eval(proc, env);
+	      type = lreg_raw_type(proc);
+	      if (type == LREG_LLPROC)
+		      return lreg_to_llproc(proc)(args, env);
+	      if (type != LREG_MACRO && type != LREG_LAMBDA) {
+		      raise_exception("not a procedure", proc);
+		      return NIL;
+	      }
+
+	      if (type == LREG_MACRO)
+		      list = evbind(proc, args, NULL, env, &lenv);
+	      else
+		      list = evbind(proc, args, env, env, &lenv);
+
+	      for (next = cdr(list); list != NIL; list = next, next = cdr(next)) {
+		      if (type == LREG_LAMBDA && next == NIL) {
+			      sexp = car(list);
+			      env = &lenv;
+			      //			      printf("tco!\n");
+			      goto tco;
+		      }
+		      ans = eval(car(list), &lenv);
+	      }
+
+	      if (type == LREG_MACRO) {
+		/* Macro expand hook? */
+		ans = eval(ans, env);
+	      }
+      }
+
       break;
+    }
     default:
       ans = sexp;
       break;
@@ -432,6 +478,7 @@ LAC_API static lreg_t proc_eq(lreg_t args, lenv_t *env)
   return ans;
 }
 
+#if 0
 LAC_API static lreg_t proc_apply(lreg_t args, lenv_t *env)
 {
   _EXPECT_ARGS(args, 2);
@@ -440,7 +487,9 @@ LAC_API static lreg_t proc_apply(lreg_t args, lenv_t *env)
 
   return apply(arg1, arg2, NULL, env);
 }
+#endif
 
+#if 0
 /* Special Form */
 LAC_API static lreg_t proc_cond(lreg_t args, lenv_t *env)
 {
@@ -456,12 +505,13 @@ LAC_API static lreg_t proc_cond(lreg_t args, lenv_t *env)
       /* Lisp-specific! Scheme (as for R5RS) checks for #t,
        * though guile doesn't.  */
       if ( cond != NIL ) {
-	  return cdr(test) == NIL ? cond : evlist(cdr(test), env);
+	      return cdr(test) == NIL ? cond : evlist(cdr(test), env, 1);
       }
       args = cdr(args);
   }
   return NIL;
 }
+#endif
 
 /* Special Form */
 LAC_API static lreg_t proc_labels(lreg_t args, lenv_t *env)
@@ -550,6 +600,11 @@ LAC_API static lreg_t proc_set(lreg_t args, lenv_t *env)
 LAC_DEFINE_TYPE_PFUNC(cons, LREG_CONS);
 LAC_DEFINE_TYPE_PFUNC(symbol, LREG_SYMBOL);
 
+LAC_API static lreg_t proc_embedded(lreg_t args, lenv_t *env)
+{
+	raise_exception("Lac bug! Embedded procedure called!\n", NIL);
+}
+
 LAC_API static lreg_t proc_gensym(lreg_t args, lenv_t *env)
 {
   #define GENSYM "#GSYM"
@@ -619,11 +674,11 @@ static void machine_init(lenv_t *env)
   sym_false = NIL;
   sym_true = register_symbol("T");
   env_define(env, sym_true, sym_true); /* Tautology. */
-
   sym_quote = register_symbol("QUOTE");
   env_define(env, sym_quote, llproc_to_lreg(proc_quote));
+  sym_cond = register_symbol("COND");
+  env_define(env, sym_cond, llproc_to_lreg(proc_embedded));
 
-  lac_extproc_register(env, "COND", proc_cond);
   lac_extproc_register(env, "LAMBDA", proc_lambda);
   lac_extproc_register(env, "DEFINE", proc_define);
   lac_extproc_register(env, "MACRO", proc_macro);
@@ -635,7 +690,7 @@ static void machine_init(lenv_t *env)
   lac_extproc_register(env,"RPLACA", proc_rplaca);
   lac_extproc_register(env,"RPLACD", proc_rplacd);
   lac_extproc_register(env,"EQ", proc_eq);
-  lac_extproc_register(env,"APPLY", proc_apply);
+  //  lac_extproc_register(env,"APPLY", proc_apply);
   lac_extproc_register(env,"LOAD", proc_load);
   lac_extproc_register(env,"SET", proc_set);
   lac_extproc_register(env,"GENSYM", proc_gensym);

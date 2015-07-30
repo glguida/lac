@@ -81,6 +81,11 @@ int main()
 
   signal(SIGINT, sigint);
 
+  lac_on_error({
+    lac_error_print(stderr);
+    exit(-1);
+  });
+  
   null_env = lac_init();
   repl(stdin, stdout, stderr);
   fprintf(stdout, "\ngoodbye!\n");
