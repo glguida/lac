@@ -27,7 +27,7 @@
 #include <readline/history.h>
 #include <gmp.h>
 #include "laconic.h"
-#include "parser.h"
+#include "sexpr_parse.h"
 
 static int readline_getc(void)
 {
