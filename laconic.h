@@ -228,7 +228,7 @@ LAC_API static lreg_t proc_##typename##p (lreg_t args, lenv_t *env)	\
 #include <stdlib.h>
 
 struct _lac_xcpt {
-  jmp_buf buf;
+  sigjmp_buf buf;
   struct _lac_xcpt *next;
 };
 
@@ -244,7 +244,7 @@ extern __thread lreg_t _lac_xcpt_reg;
     struct _lac_xcpt *p = malloc(sizeof(struct _lac_xcpt));	\
     p->next = _lac_xcpt;					\
     _lac_xcpt = p;						\
-    if ( setjmp(p->buf) != 0 ) {				\
+    if ( sigsetjmp(p->buf, 1) != 0 ) {				\
       { _b };							\
     }								\
   } while(0)

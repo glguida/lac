@@ -122,7 +122,7 @@ static inline lreg_t get_proc_body(lreg_t lr)
 #define _throw() do {				\
 	struct _lac_xcpt *p = _lac_xcpt;	\
 	_lac_xcpt = p->next;			\
-	longjmp(p->buf, 1);			\
+	siglongjmp(p->buf, 1);			\
     } while(0)
 
 /*
