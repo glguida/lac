@@ -156,16 +156,10 @@ lreg_t evargs(lreg_t list, lenv_t *env)
   return head;
 }
 
-static lreg_t
-evbind(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *lenv)
+static void
+evbind(lreg_t binds, lreg_t args, lenv_t *argenv, lenv_t *env)
 {
-  lreg_t lproc, binds, body, arg;
-
-  env_pushnew(get_closure_env(proc), lenv);
-
-  lproc = get_closure_proc(proc);
-  binds = get_proc_binds(lproc);
-  body = get_proc_body(lproc);
+  lreg_t arg;
 
   while (is_cons(binds) && is_cons(args)) {
 	  if (car(binds) == sym_rest)
@@ -173,7 +167,7 @@ evbind(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *lenv)
 	  arg = car(args);
 	  if (argenv)
 		  arg = eval(arg, argenv);
-	  env_define(lenv, car(binds), arg);
+	  env_define(env, car(binds), arg);
 	  binds = cdr(binds);
 	  args = cdr(args);
   }
@@ -183,7 +177,7 @@ evbind(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *lenv)
 	  arg = args;
 	  if (argenv)
 		  arg = evargs(arg, argenv);
-	  env_define(lenv, car(binds), arg);
+	  env_define(env, car(binds), arg);
 	  binds = cdr(binds);
 	  args = NIL;
   }
@@ -193,8 +187,6 @@ evbind(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *lenv)
 
   if (is_cons(args))
 	  raise_exception("Too many arguments", args);
-
-  return body;
 }
 
 lreg_t
@@ -206,7 +198,9 @@ apply(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env)
 lreg_t eval(lreg_t sexp, lenv_t *env)
 {
   lreg_t ans;
-  lenv_t lenv, tenv, *penv;
+  unsigned type;
+  lenv_t cloenv, tenv;
+
  tco:
   switch (lreg_raw_type(sexp))
     {
@@ -218,16 +212,15 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
       break;
     case LREG_CONS: {
       lreg_t proc = car(sexp), args = cdr(sexp);
-      unsigned type;
-      lreg_t list, next;
-      ans = NIL;
+      lenv_t *penv;
 
+      ans = NIL;
       /* COND: embedded procedure */
       if (proc == sym_cond) {
 	      lreg_t cond = NIL;
-	      lreg_t test;
+	      lreg_t next, test, body;
 
-	      list = NIL; /* Default return  */
+	      body = NIL; /* Default return  */
 	      while ( args != NIL ) {
 		      test = car(args);
 		      if ( !is_cons(test) )
@@ -240,25 +233,26 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 			      args = cdr(args);
 			      continue;
 		      }
-		      list = cdr(test);
+		      body = cdr(test);
 		      break;
 	      }
 
-	      if (list == NIL)  {
+	      if (body == NIL)  {
 		      ans = cond;
 		      break;
 	      }
 
-	      next = cdr(list);
+	      next = cdr(body);
 	      while(next != NIL) {
-		eval(car(list), env);
-		list = next;
+		eval(car(body), env);
+		body = next;
 		next = cdr(next);
 	      }
-	      sexp = car(list);
+	      sexp = car(body);
 	      /* env unchanged */
 	      goto tco;
       } else {
+	      lreg_t lproc, binds, body, next;
 	      proc = eval(proc, env);
 	      type = lreg_raw_type(proc);
 	      if (type == LREG_LLPROC)
@@ -268,22 +262,31 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 		      return NIL;
 	      }
 
+	      lproc = get_closure_proc(proc);
+	      binds = get_proc_binds(lproc);
+	      body = get_proc_body(lproc);
+
 	      if (type == LREG_MACRO) {
 		      penv = NULL;
-	      } else if (env == &lenv) {
+	      } else if (env == &cloenv) {
 		      tenv = *env;
 		      penv = &tenv;
 	      } else
 		      penv = env;
-	      list = evbind(proc, args, penv, &lenv);
 
-	      for (next = cdr(list); list != NIL; list = next, next = cdr(next)) {
-		      if (type == LREG_LAMBDA && next == NIL) {
-			      sexp = car(list);
-			      env = &lenv;
+	      env_pushnew(get_closure_env(proc), &cloenv);
+	      evbind(binds, args, penv, &cloenv);
+	      next = cdr(body);
+	      while (body != NIL) {
+		      if (next == NIL && type == LREG_LAMBDA) {
+			      sexp = car(body);
+			      env = &cloenv;
 			      goto tco;
 		      }
-		      ans = eval(car(list), &lenv);
+		      ans = eval(car(body), &cloenv);
+
+		      body = next;
+		      next = cdr(next);
 	      }
 
 	      /* type == LREG_MACRO  */
