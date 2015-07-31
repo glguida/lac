@@ -199,7 +199,7 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 {
   lreg_t ans;
   unsigned type;
-  lenv_t cloenv, tenv;
+  lenv_t tenvs[2], *cloenv, *argenv;
 
  tco:
   switch (lreg_raw_type(sexp))
@@ -212,7 +212,6 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
       break;
     case LREG_CONS: {
       lreg_t proc = car(sexp), args = cdr(sexp);
-      lenv_t *penv;
 
       ans = NIL;
       /* COND: embedded procedure */
@@ -266,24 +265,25 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 	      binds = get_proc_binds(lproc);
 	      body = get_proc_body(lproc);
 
-	      if (type == LREG_MACRO) {
-		      penv = NULL;
-	      } else if (env == &cloenv) {
-		      tenv = *env;
-		      penv = &tenv;
-	      } else
-		      penv = env;
+	      if (type == LREG_MACRO)
+		      argenv = NULL;
+	      else
+		      argenv = env;
+	      if (argenv == tenvs)
+		      cloenv = tenvs + 1;
+	      else
+		      cloenv = tenvs;
 
-	      env_pushnew(get_closure_env(proc), &cloenv);
-	      evbind(binds, args, penv, &cloenv);
+	      env_pushnew(get_closure_env(proc), cloenv);
+	      evbind(binds, args, argenv, cloenv);
 	      next = cdr(body);
 	      while (body != NIL) {
 		      if (next == NIL && type == LREG_LAMBDA) {
 			      sexp = car(body);
-			      env = &cloenv;
+			      env = cloenv;
 			      goto tco;
 		      }
-		      ans = eval(car(body), &cloenv);
+		      ans = eval(car(body), cloenv);
 
 		      body = next;
 		      next = cdr(next);
