@@ -157,13 +157,11 @@ lreg_t evargs(lreg_t list, lenv_t *env)
 }
 
 static lreg_t
-evbind(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env, lenv_t *lenv)
+evbind(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *lenv)
 {
   lreg_t lproc, binds, body, arg;
 
-  /* env == lenv on TCO */
-  if (env != lenv)
-	  env_pushnew(get_closure_env(proc), lenv);
+  env_pushnew(get_closure_env(proc), lenv);
 
   lproc = get_closure_proc(proc);
   binds = get_proc_binds(lproc);
@@ -174,7 +172,7 @@ evbind(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env, lenv_t *lenv)
 		  break;
 	  arg = car(args);
 	  if (argenv)
-		  arg = eval(arg, env);
+		  arg = eval(arg, argenv);
 	  env_define(lenv, car(binds), arg);
 	  binds = cdr(binds);
 	  args = cdr(args);
@@ -208,7 +206,7 @@ apply(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env)
 lreg_t eval(lreg_t sexp, lenv_t *env)
 {
   lreg_t ans;
-  lenv_t lenv;
+  lenv_t lenv, tenv, *penv;
  tco:
   switch (lreg_raw_type(sexp))
     {
@@ -227,11 +225,11 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
       /* COND: embedded procedure */
       if (proc == sym_cond) {
 	      lreg_t cond = NIL;
+	      lreg_t test;
 
 	      list = NIL; /* Default return  */
 	      while ( args != NIL ) {
-
-		      lreg_t test = car(args);
+		      test = car(args);
 		      if ( !is_cons(test) )
 			      _ERROR_AND_RET("Syntax error in cond");
 
@@ -245,15 +243,21 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 		      list = cdr(test);
 		      break;
 	      }
-	      for (next = cdr(list); list != NIL; list = next, next = cdr(next)) {
-		      if (next == NIL) {
-			      sexp = car(list);
-			      env = env;;
-			      goto tco;
-		      }
-		      ans = eval(car(list), env);
+
+	      if (list == NIL)  {
+		      ans = cond;
+		      break;
 	      }
 
+	      next = cdr(list);
+	      while(next != NIL) {
+		eval(car(list), env);
+		list = next;
+		next = cdr(next);
+	      }
+	      sexp = car(list);
+	      /* env unchanged */
+	      goto tco;
       } else {
 	      proc = eval(proc, env);
 	      type = lreg_raw_type(proc);
@@ -264,27 +268,30 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 		      return NIL;
 	      }
 
-	      if (type == LREG_MACRO)
-		      list = evbind(proc, args, NULL, env, &lenv);
-	      else
-		      list = evbind(proc, args, env, env, &lenv);
+	      if (type == LREG_MACRO) {
+		      penv = NULL;
+	      } else if (env == &lenv) {
+		      tenv = *env;
+		      penv = &tenv;
+	      } else
+		      penv = env;
+	      list = evbind(proc, args, penv, &lenv);
 
 	      for (next = cdr(list); list != NIL; list = next, next = cdr(next)) {
 		      if (type == LREG_LAMBDA && next == NIL) {
 			      sexp = car(list);
 			      env = &lenv;
-			      //			      printf("tco!\n");
 			      goto tco;
 		      }
 		      ans = eval(car(list), &lenv);
 	      }
 
-	      if (type == LREG_MACRO) {
-		/* Macro expand hook? */
-		ans = eval(ans, env);
-	      }
+	      /* type == LREG_MACRO  */
+	      /* Macro expand hook? */
+	      sexp = ans;
+	      /* env unchanged */
+	      goto tco;
       }
-
       break;
     }
     default:
