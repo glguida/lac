@@ -35,6 +35,7 @@
 lreg_t sym_true;
 lreg_t sym_false;
 lreg_t sym_cond;
+lreg_t sym_apply;
 lreg_t sym_quote;
 lreg_t sym_quasiquote;
 lreg_t sym_unquote;
@@ -199,33 +200,28 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 {
   lreg_t ans;
   unsigned type;
-  lenv_t cloenv, tenv;
+  lenv_t *cloenv = NULL, *tenv = NULL;
 
  tco:
   switch (lreg_raw_type(sexp))
     {
-    case LREG_NIL:
-      ans = NIL;
-      break;
     case LREG_SYMBOL:
       ans = env_lookup(env, sexp);
       break;
     case LREG_CONS: {
       lreg_t proc = car(sexp), args = cdr(sexp);
-      lenv_t *penv;
 
       ans = NIL;
       /* COND: embedded procedure */
       if (proc == sym_cond) {
 	      lreg_t cond = NIL;
-	      lreg_t next, test, body;
+	      lreg_t next, test, body;	
 
 	      body = NIL; /* Default return  */
 	      while ( args != NIL ) {
 		      test = car(args);
 		      if ( !is_cons(test) )
 			      _ERROR_AND_RET("Syntax error in cond");
-
 		      cond = eval(car(test), env);
 		      /* Lisp-specific! Scheme (as for R5RS) checks for #t,
 		       * though guile doesn't.  */
@@ -236,12 +232,8 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 		      body = cdr(test);
 		      break;
 	      }
-
-	      if (body == NIL)  {
-		      ans = cond;
-		      break;
-	      }
-
+	      if (body == NIL)
+		      return cond;
 	      next = cdr(body);
 	      while(next != NIL) {
 		eval(car(body), env);
@@ -251,8 +243,16 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 	      sexp = car(body);
 	      /* env unchanged */
 	      goto tco;
+      } else if (proc == sym_apply) {
+	      proc = car(args);
+	      args = eval(car(cdr(args)), env);
+	      sexpr_print(stdout, proc);
+	      sexpr_print(stdout, args);
+	      goto _apply;
       } else {
+	      lenv_t *penv;
 	      lreg_t lproc, binds, body, next;
+      _apply:
 	      proc = eval(proc, env);
 	      type = lreg_raw_type(proc);
 	      if (type == LREG_LLPROC)
@@ -266,24 +266,29 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 	      binds = get_proc_binds(lproc);
 	      body = get_proc_body(lproc);
 
+	      if (cloenv == NULL)
+		      cloenv = alloca(sizeof(*cloenv));
+
 	      if (type == LREG_MACRO) {
 		      penv = NULL;
-	      } else if (env == &cloenv) {
-		      tenv = *env;
-		      penv = &tenv;
+	      } else if (env == cloenv) {
+		      if (tenv == NULL)
+			      tenv = alloca(sizeof(*tenv));
+		      *tenv = *env;
+		      penv = tenv;
 	      } else
 		      penv = env;
 
-	      env_pushnew(get_closure_env(proc), &cloenv);
-	      evbind(binds, args, penv, &cloenv);
+	      env_pushnew(get_closure_env(proc), cloenv);
+	      evbind(binds, args, penv, cloenv);
 	      next = cdr(body);
 	      while (body != NIL) {
 		      if (next == NIL && type == LREG_LAMBDA) {
 			      sexp = car(body);
-			      env = &cloenv;
+			      env = cloenv;
 			      goto tco;
 		      }
-		      ans = eval(car(body), &cloenv);
+		      ans = eval(car(body), cloenv);
 
 		      body = next;
 		      next = cdr(next);
@@ -684,6 +689,7 @@ static void machine_init(lenv_t *env)
   sym_quote = register_symbol("QUOTE");
   env_define(env, sym_quote, llproc_to_lreg(proc_quote));
   sym_cond = register_symbol("COND");
+  sym_apply = register_symbol("APPLY");
 
   lac_extproc_register(env, "LAMBDA", proc_lambda);
   lac_extproc_register(env, "DEFINE", proc_define);

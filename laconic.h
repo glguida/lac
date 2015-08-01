@@ -88,7 +88,7 @@ typedef struct {
 
 static inline lreg_t lreg_raw(void *ptr, unsigned type)
 {
-  return (lreg_t)((uintptr_t)ptr & ~LREG_TYPE_MASK) | type;
+  return (lreg_t)((uintptr_t)ptr) | type;
 }
 
 static inline void *lreg_raw_ptr(lreg_t lr)
