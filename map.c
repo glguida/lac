@@ -22,7 +22,7 @@
 #include <gc/gc.h>
 
 #define is_cons(lr) (lreg_raw_type(lr) == LREG_CONS)
-#if 0
+
 static lreg_t map_args(lreg_t lists)
 {
   lreg_t args = lists;
@@ -81,7 +81,7 @@ LAC_API static lreg_t proc_mapcar(lreg_t args, lenv_t *env)
       mapargs = map_args(lists);
       if ( mapargs == NIL )
         break;
-      outelm = apply(fn, mapargs, env, env);
+      outelm = apply(fn, mapargs, env);
       
       if ( outlist == NIL ) {
         outlist = tail = cons(outelm, NIL);
@@ -108,15 +108,14 @@ LAC_API static lreg_t proc_reduce(lreg_t args, lenv_t *env)
   list = cdr(list);
 
   for ( ; list != NIL; list = cdr(list) )
-	  acc = apply(fn, cons(acc, cons(car(list), NIL)), env, env);
+	  acc = apply(fn, cons(acc, cons(car(list), NIL)), env);
 
   return acc;
 }
-#endif
+
 void map_init(lenv_t *env)
 {
-#if 0
+
   lac_extproc_register(env, "MAPCAR", proc_mapcar);
   lac_extproc_register(env, "REDURE", proc_reduce);
-#endif
 }

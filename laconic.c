@@ -193,7 +193,7 @@ evbind(lreg_t binds, lreg_t args, lenv_t *argenv, lenv_t *env)
 lreg_t
 apply(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env)
 {
-  raise_exception("apply called", NIL);
+	return eval(cons(sym_apply, cons(proc, cons(args, NIL))), env);
 }
 
 lreg_t eval(lreg_t sexp, lenv_t *env)
