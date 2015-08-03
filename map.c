@@ -40,9 +40,9 @@ static lreg_t map_args(lreg_t lists)
 	}
 
       if ( outargs == NIL ) {
-        outargs = tail = cons(cons(sym_quote, cons(car(car(args)), NIL)), NIL);
+        outargs = tail = cons(cons(sym_quote, cons(cons(car(car(args)), NIL), NIL)), NIL);
       } else {
-	lreg_t tmp = cons(cons(sym_quote, cons(car(car(args)), NIL)), NIL);
+	lreg_t tmp = cons(cons(sym_quote, cons(cons(car(car(args)), NIL), NIL)), NIL);
         rplacd(tail, tmp);
         tail = tmp;
       }
@@ -82,7 +82,7 @@ LAC_API static lreg_t proc_mapcar(lreg_t args, lenv_t *argenv, lenv_t *env)
       mapargs = map_args(lists);
       if ( mapargs == NIL )
         break;
-      outelm = apply(fn, mapargs, env);
+      outelm = apply(fn, car(mapargs), env);
       
       if ( outlist == NIL ) {
         outlist = tail = cons(outelm, NIL);
@@ -118,5 +118,5 @@ void map_init(lenv_t *env)
 {
 
   lac_extproc_register(env, "MAPCAR", proc_mapcar);
-  lac_extproc_register(env, "REDURE", proc_reduce);
+  lac_extproc_register(env, "REDUCE", proc_reduce);
 }
