@@ -191,7 +191,7 @@ evbind(lreg_t binds, lreg_t args, lenv_t *argenv, lenv_t *env)
 }
 
 lreg_t
-apply(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env)
+apply(lreg_t proc, lreg_t args, lenv_t *env)
 {
 	return eval(cons(sym_apply, cons(proc, cons(args, NIL))), env);
 }
@@ -210,6 +210,7 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
       break;
     case LREG_CONS: {
       lreg_t proc = car(sexp), args = cdr(sexp);
+      lenv_t *penv, *argenv;
 
       ans = NIL;
       /* COND: embedded procedure */
@@ -244,41 +245,46 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 	      /* env unchanged */
 	      goto tco;
       } else if (proc == sym_apply) {
+
+
 	      proc = car(args);
-	      args = eval(car(cdr(args)), env);
+	      args = eval(car(cdr(args)), env);;
+	      argenv = NULL;	      
 	      sexpr_print(stdout, proc);
 	      sexpr_print(stdout, args);
+	      printf("Here?\n");
 	      goto _apply;
+	      //      } else if (proc == sym_quote) {
+	      //	ans = car(args);
+	      //	      break;
       } else {
-	      lenv_t *penv;
 	      lreg_t lproc, binds, body, next;
+
+	      argenv = env;
       _apply:
 	      proc = eval(proc, env);
 	      type = lreg_raw_type(proc);
 	      if (type == LREG_LLPROC)
-		      return lreg_to_llproc(proc)(args, env);
+		      return lreg_to_llproc(proc)(args, argenv, env);
 	      if (type != LREG_MACRO && type != LREG_LAMBDA) {
 		      raise_exception("not a procedure", proc);
 		      return NIL;
 	      }
-
 	      lproc = get_closure_proc(proc);
 	      binds = get_proc_binds(lproc);
 	      body = get_proc_body(lproc);
 
 	      if (cloenv == NULL)
 		      cloenv = alloca(sizeof(*cloenv));
-
 	      if (type == LREG_MACRO) {
 		      penv = NULL;
-	      } else if (env == cloenv) {
+	      } else if (argenv == cloenv) {
 		      if (tenv == NULL)
 			      tenv = alloca(sizeof(*tenv));
-		      *tenv = *env;
+		      *tenv = *argenv;
 		      penv = tenv;
 	      } else
-		      penv = env;
-
+		      penv = argenv;
 	      env_pushnew(get_closure_env(proc), cloenv);
 	      evbind(binds, args, penv, cloenv);
 	      next = cdr(body);

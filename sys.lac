@@ -35,9 +35,9 @@
 (defun ninth (l) (eighth (cdr l)))
 (defun tenth (l) (ninth (cdr l)))
 
-;(defmacro let (binds &rest body) 
-;  `((lambda ,(mapcar car binds) ,@body)
-;    ,@(mapcar cadr binds)))
+(defmacro let (binds &rest body) 
+  `((lambda ,(mapcar car binds) ,@body)
+    ,@(mapcar cadr binds)))
 
 (defmacro if (test true false)
   `(cond (,test ,true) (t ,false)))
@@ -70,14 +70,14 @@
       NIL 
       (or (eq (car lst) el) (member el (cdr lst)))))
 
-;(defun append (&rest llst)
-;  (let ((lst (car llst))
-;	(lsts (cdr llst)))
-;    (cond
-;      ((null lsts) lst)
-;      ((eq 1 (length lst)) (cons (car lst) (apply append lsts)))
-;      (t (cons (car lst)
-;	       (append (cdr lst) (apply append lsts)))))))
+(defun append (&rest llst)
+  (let ((lst (car llst))
+	(lsts (cdr llst)))
+    (cond
+      ((null lsts) lst)
+      ((eq 1 (length lst)) (cons (car lst) (apply append lsts)))
+      (t (cons (car lst)
+	       (append (cdr lst) (apply append lsts)))))))
 
 (defun remove-if (test lst) 
   (if (null lst) 

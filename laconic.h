@@ -176,7 +176,7 @@ extern lreg_t sym_rest;
 #define rplacd(_lr, _d) do { get_cons(_lr)->d = (_d); } while(0)
 lreg_t evargs(lreg_t list, lenv_t *env);
 lreg_t eval(lreg_t list, lenv_t *env);
-lreg_t apply(lreg_t proc, lreg_t args, lenv_t *argenv, lenv_t *env);
+lreg_t apply(lreg_t proc, lreg_t args, lenv_t *env);
 lreg_t cons(lreg_t a, lreg_t b);
 lreg_t intern_symbol(char *s);
 
