@@ -265,7 +265,7 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 	      proc = eval(proc, env);
 	      type = lreg_raw_type(proc);
 	      if (type == LREG_LLPROC)
-		      return lreg_to_llproc(proc)(args, argenv, env);
+		      return lreg_to_llproc(proc)(args, env);
 	      if (type != LREG_MACRO && type != LREG_LAMBDA) {
 		      raise_exception("not a procedure", proc);
 		      return NIL;
