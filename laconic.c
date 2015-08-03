@@ -245,18 +245,10 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 	      /* env unchanged */
 	      goto tco;
       } else if (proc == sym_apply) {
-
-
 	      proc = car(args);
 	      args = eval(car(cdr(args)), env);;
-	      argenv = NULL;	      
-	      sexpr_print(stdout, proc);
-	      sexpr_print(stdout, args);
-	      printf("Here?\n");
+	      argenv = NULL;
 	      goto _apply;
-	      //      } else if (proc == sym_quote) {
-	      //	ans = car(args);
-	      //	      break;
       } else {
 	      lreg_t lproc, binds, body, next;
 
