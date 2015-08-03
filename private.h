@@ -69,7 +69,7 @@ struct env {
 #define lreg_to_llproc(lr) lreg_to_cfunc(lr)
 #define llproc_to_lreg(llproc) cfunc_to_lreg(llproc, LREG_LLPROC)
 
-typedef lreg_t(*lac_function_t) (lreg_t args, lenv_t * env);
+typedef lreg_t(*lac_function_t) (lreg_t args, lenv_t *argenv, lenv_t * env);
 static inline lac_function_t lreg_to_cfunc(lreg_t lr)
 {
 	assert(is_llproc(lr));

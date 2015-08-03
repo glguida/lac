@@ -140,7 +140,7 @@ get_cons(lreg_t lr)
  */
 
 #define LAC_API __attribute__((aligned(16)))
-typedef lreg_t (*lac_function_t)(lreg_t args, lenv_t *env);
+typedef lreg_t (*lac_function_t)(lreg_t args, lenv_t *argenv, lenv_t *env);
 
 
 /*
@@ -208,10 +208,10 @@ lreg_t intern_symbol(char *s);
   } while ( 0 )
 
 #define LAC_DEFINE_TYPE_PFUNC(typename, typeno)				\
-LAC_API static lreg_t proc_##typename##p (lreg_t args, lenv_t *env)	\
+  LAC_API static lreg_t proc_##typename##p (lreg_t args, lenv_t *argenv, lenv_t *env) \
 {									\
   _EXPECT_ARGS(args, 1);						\
-  lreg_t arg1 = eval(car(args), env);					\
+  lreg_t arg1 = ARGEVAL(car(args), argenv);				\
   if ( lreg_type(arg1) == typeno )					\
     return sym_true;							\
   else									\

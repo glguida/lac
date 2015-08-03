@@ -265,7 +265,7 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 	      proc = eval(proc, env);
 	      type = lreg_raw_type(proc);
 	      if (type == LREG_LLPROC)
-		      return lreg_to_llproc(proc)(args, env);
+		      return lreg_to_llproc(proc)(args, argenv, env);
 	      if (type != LREG_MACRO && type != LREG_LAMBDA) {
 		      raise_exception("not a procedure", proc);
 		      return NIL;
@@ -319,8 +319,11 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 /*
  * Embedded  Procedures
  */
+
+#define ARGEVAL(_lr, _e) ((_e) == NULL ? _lr : eval((_lr), (_e)))
+
 /* Special Form */
-LAC_API static lreg_t proc_quote(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_quote(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   _EXPECT_ARGS(args, 1);
   return car(args);
@@ -407,7 +410,7 @@ static void _qquote(lreg_t sexp, lenv_t *env, lreg_t *first, lreg_t *last, int n
 }
 
 /* Special Form */
-LAC_API static lreg_t proc_quasiquote(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_quasiquote(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   lreg_t ret;
   _EXPECT_ARGS(args, 1);
@@ -415,10 +418,10 @@ LAC_API static lreg_t proc_quasiquote(lreg_t args, lenv_t *env)
   return ret;
 }
 
-LAC_API static lreg_t proc_car(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_car(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   _EXPECT_ARGS(args, 1);
-  lreg_t arg1 = eval(car(args), env);
+  lreg_t arg1 = ARGEVAL(car(args), argenv);
 
   /* Lisp-specific! */
   if (arg1 == NIL)
@@ -430,10 +433,10 @@ LAC_API static lreg_t proc_car(lreg_t args, lenv_t *env)
   return car(arg1); 
 }
 
-LAC_API static lreg_t proc_cdr(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_cdr(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   _EXPECT_ARGS(args, 1);
-  lreg_t arg1 = eval(car(args), env);
+  lreg_t arg1 = ARGEVAL(car(args), argenv);
 
   /* Lisp-specific!
      If I really want to keep this spec I should change cdr() and
@@ -447,20 +450,20 @@ LAC_API static lreg_t proc_cdr(lreg_t args, lenv_t *env)
   return cdr(arg1);  
 }
 
-LAC_API static lreg_t proc_cons(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_cons(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   _EXPECT_ARGS(args, 2);
-  lreg_t arg1 = eval(car(args), env);
-  lreg_t arg2 = eval(car(cdr(args)), env);
+  lreg_t arg1 = ARGEVAL(car(args), argenv);
+  lreg_t arg2 = ARGEVAL(car(cdr(args)), argenv);
 
   return cons(arg1, arg2);
 }
 
-LAC_API static lreg_t proc_rplaca(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_rplaca(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   _EXPECT_ARGS(args, 2);
-  lreg_t arg1 = eval(car(args), env);
-  lreg_t arg2 = eval(car(cdr(args)), env);
+  lreg_t arg1 = ARGEVAL(car(args), argenv);
+  lreg_t arg2 = ARGEVAL(car(cdr(args)), argenv);
 
   if ( !is_cons(arg1) )
     _ERROR_AND_RET("argument is not cons");
@@ -469,11 +472,11 @@ LAC_API static lreg_t proc_rplaca(lreg_t args, lenv_t *env)
   return arg1;
 }
 
-LAC_API static lreg_t proc_rplacd(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_rplacd(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   _EXPECT_ARGS(args, 2);
-  lreg_t arg1 = eval(car(args), env);
-  lreg_t arg2 = eval(car(cdr(args)), env);
+  lreg_t arg1 = ARGEVAL(car(args), argenv);
+  lreg_t arg2 = ARGEVAL(car(cdr(args)), argenv);
 
   if ( !is_cons(arg1) )
     _ERROR_AND_RET("argument is not cons");
@@ -482,12 +485,12 @@ LAC_API static lreg_t proc_rplacd(lreg_t args, lenv_t *env)
   return arg1;
 }
 
-LAC_API static lreg_t proc_eq(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_eq(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   _EXPECT_ARGS(args, 2);
   lreg_t ans = sym_false;
-  lreg_t arg1 = eval(car(args), env);
-  lreg_t arg2 = eval(car(cdr(args)), env);
+  lreg_t arg1 = ARGEVAL(car(args), argenv);
+  lreg_t arg2 = ARGEVAL(car(cdr(args)), argenv);
 
   if ( arg1 == arg2 )
     ans = sym_true;
@@ -537,7 +540,7 @@ LAC_API static lreg_t proc_cond(lreg_t args, lenv_t *env)
 #endif
 
 /* Special Form */
-LAC_API static lreg_t proc_labels(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_labels(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   /* At least 3 arguments required. */
   _EXPECT_MIN_ARGS(args, 3);
@@ -556,7 +559,7 @@ LAC_API static lreg_t proc_labels(lreg_t args, lenv_t *env)
 }
 
 /* Special Form */
-LAC_API static lreg_t proc_lambda(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_lambda(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   /* At least 2 arguments required. */
   _EXPECT_MIN_ARGS(args, 2);
@@ -571,7 +574,7 @@ LAC_API static lreg_t proc_lambda(lreg_t args, lenv_t *env)
 }
 
 /* Special Form */
-LAC_API static lreg_t proc_macro(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_macro(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   /* At least 2 arguments required. */
   _EXPECT_MIN_ARGS(args, 2);
@@ -586,7 +589,7 @@ LAC_API static lreg_t proc_macro(lreg_t args, lenv_t *env)
 }
 
 /* Special Form */
-LAC_API static lreg_t proc_define(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_define(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   lreg_t defd;
   _EXPECT_ARGS(args, 2);
@@ -599,12 +602,12 @@ LAC_API static lreg_t proc_define(lreg_t args, lenv_t *env)
   return defd;
 }
 
-LAC_API static lreg_t proc_set(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_set(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   int r;
   _EXPECT_ARGS(args, 2);
-  lreg_t arg1 = eval(car(args), env);
-  lreg_t arg2 = eval(car(cdr(args)), env);
+  lreg_t arg1 = ARGEVAL(car(args), argenv);
+  lreg_t arg2 = ARGEVAL(car(cdr(args)), argenv);
 
   if ( !is_symbol(arg1) )
     _ERROR_AND_RET("Syntax error in set");
@@ -623,7 +626,7 @@ LAC_API static lreg_t proc_set(lreg_t args, lenv_t *env)
 LAC_DEFINE_TYPE_PFUNC(cons, LREG_CONS);
 LAC_DEFINE_TYPE_PFUNC(symbol, LREG_SYMBOL);
 
-LAC_API static lreg_t proc_gensym(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_gensym(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   #define GENSYM "#GSYM"
   static int id = 0;
@@ -641,7 +644,7 @@ LAC_API static lreg_t proc_gensym(lreg_t args, lenv_t *env)
   return ret;
 }
 
-LAC_API static lreg_t proc_load(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_load(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   int r;
   FILE *f;
@@ -650,7 +653,7 @@ LAC_API static lreg_t proc_load(lreg_t args, lenv_t *env)
   lreg_t res, arg1;
   _EXPECT_ARGS(args, 1);
 
-  arg1 = eval(car(args), env);
+  arg1 = ARGEVAL(car(args), argenv);
   if ( lreg_type(arg1) != LREG_STRING )
     _ERROR_AND_RET("Syntax error in load");
 

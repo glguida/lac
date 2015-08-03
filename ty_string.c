@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#define ARGEVAL(_lr, _e) ((_e) == NULL ? _lr : eval((_lr), (_e)))
 
 static void string_print(FILE *fd, lreg_t lr)
 {
@@ -55,27 +56,27 @@ static int string_compare(lreg_t arg1, lreg_t arg2)
 
 #define BINARY_STR_OP_CHECKS(args)			\
   _EXPECT_ARGS(args, 2);				\
-  lreg_t s1 = eval(car(args), env);			\
-  lreg_t s2 = eval(car(cdr(args)), env);		\
+  lreg_t s1 = ARGEVAL(car(args), argenv);		\
+  lreg_t s2 = ARGEVAL(car(cdr(args)), argenv);		\
 							\
   if ( lreg_type(s1) != lreg_type(s2)			\
-       || !(lreg_type(s1) == LREG_STRING) )			\
+       || !(lreg_type(s1) == LREG_STRING) )		\
     _ERROR_AND_RET("Function requires two strings!\n");
 
 
-LAC_API lreg_t proc_string_lessp(lreg_t args, lenv_t *env)
+LAC_API lreg_t proc_string_lessp(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   BINARY_STR_OP_CHECKS(args);
   return (string_compare(s1, s2) >= 0 ? sym_false : sym_true);
 }
 
-LAC_API static lreg_t proc_string_greaterp(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_string_greaterp(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   BINARY_STR_OP_CHECKS(args);
   return (string_compare(s1, s2) <= 0 ? sym_false : sym_true);
 }
 
-LAC_API static lreg_t proc_string_equal(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_string_equal(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   BINARY_STR_OP_CHECKS(args);
   return (string_compare(s1, s2) != 0 ? sym_false : sym_true);

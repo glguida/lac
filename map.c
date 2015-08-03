@@ -21,6 +21,7 @@
 #include "laconic.h"
 #include <gc/gc.h>
 
+#define ARGEVAL(_lr, _e) ((_e) == NULL ? _lr : eval((_lr), (_e)))
 #define is_cons(lr) (lreg_raw_type(lr) == LREG_CONS)
 
 static lreg_t map_args(lreg_t lists)
@@ -54,13 +55,13 @@ static lreg_t map_args(lreg_t lists)
 
 
 
-LAC_API static lreg_t proc_mapcar(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_mapcar(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   _EXPECT_MIN_ARGS(args, 2);
   lreg_t mapargs;
   lreg_t fn, lists;
   lreg_t outlist = NIL, tail = NIL;
-  lreg_t evd = evargs(args, env);
+  lreg_t evd = argenv == NULL ? args : evargs(args, env);
   fn = car(evd);
   lists = cdr(evd);
 
@@ -94,12 +95,12 @@ LAC_API static lreg_t proc_mapcar(lreg_t args, lenv_t *env)
   return outlist; 
 }
 
-LAC_API static lreg_t proc_reduce(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_reduce(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   _EXPECT_ARGS(args, 2);
   lreg_t acc;
-  lreg_t fn = eval(car(args), env);
-  lreg_t list = eval(car(cdr(args)), env);
+  lreg_t fn = ARGEVAL(car(args), argenv);
+  lreg_t list = ARGEVAL(car(cdr(args)), argenv);
 
   if ( !is_cons(list) )
       _ERROR_AND_RET("Syntax error in reduce\n");

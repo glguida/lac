@@ -21,6 +21,8 @@
 #include <stdio.h>
 #include <limits.h>
 
+#define ARGEVAL(_lr, _e) ((_e) == NULL ? _lr : eval((_lr), (_e)))
+
 #define INT_UNBOX(lr, n) lac_extty_unbox(lr, (void **)&n)
 
 /*
@@ -54,20 +56,20 @@ static lac_exttype_t int_ty = {
   Additional procedures.
  */
 
-#define _BINOP_CHECKS(a, b)				\
-  _EXPECT_ARGS(args, 2);				\
-  lreg_t arg1 = eval(car(args), env);			\
-  lreg_t arg2 = eval(car(cdr(args)), env);		\
-							\
-  if ( !(lreg_type(arg1) == lreg_type(arg2))		\
-       || lreg_type(arg1) != LREG_INTEGER )		\
-      _ERROR_AND_RET("+ requires two integers");	\
-							\
-  lac_extty_unbox(arg1, (void **)&a);			\
-  lac_extty_unbox(arg2, (void **)&b);
+#define _BINOP_CHECKS(a, b)					\
+	_EXPECT_ARGS(args, 2);					\
+	lreg_t arg1 = ARGEVAL(car(args), argenv);		\
+	lreg_t arg2 = ARGEVAL(car(cdr(args)), argenv);		\
+								\
+	if ( !(lreg_type(arg1) == lreg_type(arg2))		\
+	     || lreg_type(arg1) != LREG_INTEGER )		\
+		_ERROR_AND_RET("+ requires two integers");	\
+  								\
+	lac_extty_unbox(arg1, (void **)&a);			\
+	lac_extty_unbox(arg2, (void **)&b);
 
 
-LAC_API static lreg_t proc_plus(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_plus(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   long *n1, *n2, *n;
   _BINOP_CHECKS(n1, n2);
@@ -81,7 +83,7 @@ LAC_API static lreg_t proc_plus(lreg_t args, lenv_t *env)
   return lac_extty_box(LREG_INTEGER, n, sizeof(*n));
 }
 
-LAC_API static lreg_t proc_minus(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_minus(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   long *n1, *n2, *n;
   _BINOP_CHECKS(n1, n2);
@@ -95,7 +97,7 @@ LAC_API static lreg_t proc_minus(lreg_t args, lenv_t *env)
   return lac_extty_box(LREG_INTEGER, n, sizeof(*n));
 }
 
-LAC_API static lreg_t proc_star(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_star(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   long *n1, *n2, *n;
   _BINOP_CHECKS(n1, n2);
@@ -130,7 +132,7 @@ LAC_API static lreg_t proc_star(lreg_t args, lenv_t *env)
   return NIL;
 }
 
-LAC_API static lreg_t proc_mod(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_mod(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   long *n1, *n2, *n;
   _BINOP_CHECKS(n1, n2);
@@ -143,7 +145,7 @@ LAC_API static lreg_t proc_mod(lreg_t args, lenv_t *env)
   return lac_extty_box(LREG_INTEGER, n, sizeof(*n));
 }
 
-LAC_API static lreg_t proc_div(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_div(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   long *n1, *n2, *n;
   _BINOP_CHECKS(n1, n2);
@@ -156,28 +158,28 @@ LAC_API static lreg_t proc_div(lreg_t args, lenv_t *env)
   return lac_extty_box(LREG_INTEGER, n, sizeof(*n));
 }
 
-LAC_API static lreg_t proc_greater(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_greater(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   long *n1, *n2;
   _BINOP_CHECKS(n1, n2);
   return *n1 > *n2 ? sym_true : sym_false;
 }
 
-LAC_API static lreg_t proc_greatereq(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_greatereq(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   long *n1, *n2;
   _BINOP_CHECKS(n1, n2);
   return *n1 >= *n2 ? sym_true : sym_false;
 }
 
-LAC_API static lreg_t proc_less(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_less(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   long *n1, *n2;
   _BINOP_CHECKS(n1, n2);
   return *n1 < *n2 ? sym_true : sym_false;
 }
 
-LAC_API static lreg_t proc_lesseq(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_lesseq(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   long *n1, *n2;
   _BINOP_CHECKS(n1, n2);
