@@ -203,9 +203,8 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
   lreg_t ans;
   unsigned type;
   lenv_t *cloenv;
-  lenv_t *tenvs[2];
+  lenv_t *tenvs[2] = { NULL, NULL };
 
-  tenvs[0] = NULL;
  tco:
   switch (lreg_raw_type(sexp))
     {
@@ -278,13 +277,13 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 
 	      if (tenvs[0] == NULL) {
 		      tenvs[0] = alloca(sizeof(lenv_t));
-		      tenvs[1] = NULL;
 		      cloenv = tenvs[0];
 	      }
 	      if (type == LREG_MACRO) {
 		      penv = NULL;
 	      } else
 		      penv = argenv;
+
 	      env_pushnew(get_closure_env(proc), cloenv);
 	      evbind(binds, args, penv, cloenv);
 	      next = cdr(body);
@@ -312,7 +311,6 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 	      }
 	      if (type == LREG_LAMBDA)
 		      break;
-
 	      if (in_tco) {
 		      /* Macro expand hook? */
 		      sexp = ans;
