@@ -202,8 +202,10 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 {
   lreg_t ans;
   unsigned type;
-  lenv_t *cloenv = NULL, *tenv = NULL;
+  lenv_t *cloenv;
+  lenv_t *tenvs[2];
 
+  tenvs[0] = NULL;
  tco:
   switch (lreg_raw_type(sexp))
     {
@@ -274,15 +276,13 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 	      binds = get_proc_binds(lproc);
 	      body = get_proc_body(lproc);
 
-	      if (cloenv == NULL)
-		      cloenv = alloca(sizeof(*cloenv));
+	      if (tenvs[0] == NULL) {
+		      tenvs[0] = alloca(sizeof(lenv_t));
+		      tenvs[1] = NULL;
+		      cloenv = tenvs[0];
+	      }
 	      if (type == LREG_MACRO) {
 		      penv = NULL;
-	      } else if (argenv == cloenv) {
-		      if (tenv == NULL)
-			      tenv = alloca(sizeof(*tenv));
-		      *tenv = *env;
-		      penv = tenv;
 	      } else
 		      penv = argenv;
 	      env_pushnew(get_closure_env(proc), cloenv);
@@ -290,8 +290,17 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 	      next = cdr(body);
 	      while (body != NIL) {
 		      if (next == NIL && type == LREG_LAMBDA && in_tco) {
-			      sexp = car(body);
+			      lenv_t *t;
+
+			      if (tenvs[1] == NULL) {
+				      tenvs[1] = alloca(sizeof(lenv_t));
+				      env = tenvs[1];
+			      }
+			      /* Swap ENV */
+			      t = env;
 			      env = cloenv;
+			      cloenv = t;
+			      sexp = car(body);
 			      goto tco;
 		      }
 		      in_tco = 1;
