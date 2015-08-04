@@ -43,8 +43,7 @@ include_directories(SIGSEGV_INCLUDE_DIRS)
 find_package(BISON 3.0)
 find_package(FLEX)
 
-FLEX_TARGET(sexpr_lex sexpr_lex.l ${CMAKE_CURRENT_BINARY_DIR}/sexpr_lex.c
-            COMPILE_FLAGS "--header-file=sexpr_lex.h")
+FLEX_TARGET(sexpr_lex sexpr_lex.l ${CMAKE_CURRENT_BINARY_DIR}/sexpr_lex.c)
 BISON_TARGET(sexpr_parse
              sexpr_parse.y
 	     ${CMAKE_CURRENT_BINARY_DIR}/sexpr_parse.c)
