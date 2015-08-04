@@ -18,7 +18,6 @@
     ((eq b 0) a)
     (t (gcd b (% a b)))))
 
-; A tribute to XKCD #710
 (defun f-collatz (n)
   (cond 
     ((eq n 1) 1)
