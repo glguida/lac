@@ -196,6 +196,8 @@ apply(lreg_t proc, lreg_t args, lenv_t *env)
 	return eval(cons(sym_apply, cons(proc, cons(args, NIL))), env);
 }
 
+static __thread int in_tco = 0;
+
 lreg_t eval(lreg_t sexp, lenv_t *env)
 {
   lreg_t ans;
@@ -241,9 +243,15 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 		body = next;
 		next = cdr(next);
 	      }
-	      sexp = car(body);
-	      /* env unchanged */
-	      goto tco;
+	      if (in_tco) {
+		      sexp = car(body);
+		      /* env unchanged */
+		      goto tco;
+	      }
+	      in_tco = 1;
+	      ans = eval(car(body), env);
+	      in_tco = 0;
+	      break;
       } else if (proc == sym_apply) {
 	      proc = car(args);
 	      args = eval(car(cdr(args)), env);;
@@ -273,7 +281,7 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 	      } else if (argenv == cloenv) {
 		      if (tenv == NULL)
 			      tenv = alloca(sizeof(*tenv));
-		      *tenv = *argenv;
+		      *tenv = *env;
 		      penv = tenv;
 	      } else
 		      penv = argenv;
@@ -281,22 +289,31 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 	      evbind(binds, args, penv, cloenv);
 	      next = cdr(body);
 	      while (body != NIL) {
-		      if (next == NIL && type == LREG_LAMBDA) {
+		      if (next == NIL && type == LREG_LAMBDA && in_tco) {
 			      sexp = car(body);
 			      env = cloenv;
 			      goto tco;
 		      }
+		      in_tco = 1;
 		      ans = eval(car(body), cloenv);
+		      in_tco = 0;
 
 		      body = next;
 		      next = cdr(next);
 	      }
+	      if (type == LREG_LAMBDA)
+		      break;
 
-	      /* type == LREG_MACRO  */
-	      /* Macro expand hook? */
-	      sexp = ans;
-	      /* env unchanged */
-	      goto tco;
+	      if (in_tco) {
+		      /* Macro expand hook? */
+		      sexp = ans;
+		      /* env unchanged */
+		      goto tco;
+	      }
+	      in_tco = 1;
+	      ans = eval(ans, env);
+	      in_tco = 0;
+	      break;
       }
       break;
     }
