@@ -720,7 +720,6 @@ static void machine_init(lenv_t *env)
   lac_extproc_register(env,"RPLACA", proc_rplaca);
   lac_extproc_register(env,"RPLACD", proc_rplacd);
   lac_extproc_register(env,"EQ", proc_eq);
-  //  lac_extproc_register(env,"APPLY", proc_apply);
   lac_extproc_register(env,"LOAD", proc_load);
   lac_extproc_register(env,"SET", proc_set);
   lac_extproc_register(env,"GENSYM", proc_gensym);
