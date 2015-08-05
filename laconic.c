@@ -196,9 +196,8 @@ apply(lreg_t proc, lreg_t args, lenv_t *env)
 	return eval(cons(sym_apply, cons(proc, cons(args, NIL))), env);
 }
 
-static __thread int in_tco = 0;
-
-lreg_t eval(lreg_t sexp, lenv_t *env)
+static lreg_t
+_eval(lreg_t sexp, lenv_t *env, const int in_tco)
 {
   lreg_t ans;
   unsigned type;
@@ -226,7 +225,7 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 		      test = car(args);
 		      if ( !is_cons(test) )
 			      _ERROR_AND_RET("Syntax error in cond");
-		      cond = eval(car(test), env);
+		      cond = _eval(car(test), env, 0);
 		      /* Lisp-specific! Scheme (as for R5RS) checks for #t,
 		       * though guile doesn't.  */
 		      if ( cond == NIL ) {
@@ -240,7 +239,7 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 		      return cond;
 	      next = cdr(body);
 	      while(next != NIL) {
-		eval(car(body), env);
+		_eval(car(body), env, 0);
 		body = next;
 		next = cdr(next);
 	      }
@@ -249,13 +248,11 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 		      /* env unchanged */
 		      goto tco;
 	      }
-	      in_tco = 1;
-	      ans = eval(car(body), env);
-	      in_tco = 0;
+	      ans = _eval(car(body), env, 1);
 	      break;
       } else if (proc == sym_apply) {
 	      proc = car(args);
-	      args = eval(car(cdr(args)), env);;
+	      args = _eval(car(cdr(args)), env, 0);;
 	      argenv = NULL;
 	      goto _apply;
       } else {
@@ -263,7 +260,7 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 
 	      argenv = env;
       _apply:
-	      proc = eval(proc, env);
+	      proc = _eval(proc, env, 0);
 	      type = lreg_raw_type(proc);
 	      if (type == LREG_LLPROC)
 		      return lreg_to_llproc(proc)(args, argenv, env);
@@ -302,9 +299,7 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 			      sexp = car(body);
 			      goto tco;
 		      }
-		      in_tco = 1;
-		      ans = eval(car(body), cloenv);
-		      in_tco = 0;
+		      ans = _eval(car(body), cloenv, 1);
 
 		      body = next;
 		      next = cdr(next);
@@ -317,9 +312,7 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
 		      /* env unchanged */
 		      goto tco;
 	      }
-	      in_tco = 1;
-	      ans = eval(ans, env);
-	      in_tco = 0;
+	      ans = _eval(ans, env, 1);
 	      break;
       }
       break;
@@ -329,6 +322,11 @@ lreg_t eval(lreg_t sexp, lenv_t *env)
       break;
     }
   return ans;
+}
+
+lreg_t eval(lreg_t lr, lenv_t *env)
+{
+	return _eval(lr, env, 0);
 }
 
 
