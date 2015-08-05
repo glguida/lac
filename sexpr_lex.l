@@ -102,13 +102,13 @@ SIGN [+|-]
 {WHITESPACE}
 
 {SIGN}?{DIGIT}+ {
-	unsigned long *n = lac_alloc(sizeof(unsigned long));
+	intptr_t n;
 
 	errno = 0;
-	*n = strtol(yytext, (char **)NULL, 10);
+	n = strtol(yytext, (char **)NULL, 10);
 	if ( errno == ERANGE )
 		raise_exception("Integer overflow in input", NIL);
-        *lvalp = lac_extty_box(LREG_INTEGER, n, sizeof(*n));
+        *lvalp = lac_extty_box(LREG_INTEGER, (void *)n, 0);
 	return ATOM;
 }
 
@@ -118,13 +118,13 @@ SIGN [+|-]
 }
 
 (#x|0x){HEXDIGIT}+ {
-	unsigned long *n = lac_alloc(sizeof(unsigned long));
+	intptr_t n;
 
 	errno = 0;
-	*n = strtol(yytext+2, (char **)NULL, 16);
+	n = strtol(yytext+2, (char **)NULL, 16);
 	if ( errno == ERANGE )
 		raise_exception("Integer overflow in input", NIL);
-	*lvalp = lac_extty_box(LREG_INTEGER, n, sizeof(*n));
+	*lvalp = lac_extty_box(LREG_INTEGER, (void *)n, 0);
 	return ATOM;
 }
 
