@@ -109,12 +109,7 @@ SIGN [+|-]
 	if ( errno == ERANGE )
 		raise_exception("Integer overflow in input", NIL);
         *lvalp = lac_extty_box(LREG_INTEGER, (void *)n, 0);
-	return ATOM;
-}
-
-(NIL|nil) {
-	*lvalp = NIL;
-	return ATOM;
+	return INTEGER;
 }
 
 (#x|0x){HEXDIGIT}+ {
@@ -125,7 +120,12 @@ SIGN [+|-]
 	if ( errno == ERANGE )
 		raise_exception("Integer overflow in input", NIL);
 	*lvalp = lac_extty_box(LREG_INTEGER, (void *)n, 0);
-	return ATOM;
+	return INTEGER;
+}
+
+(NIL|nil) {
+	*lvalp = NIL;
+	return NIHIL;
 }
 
 \"[^\"]*\" {
@@ -133,7 +133,7 @@ SIGN [+|-]
 	char *s = lac_alloc(len - 1);
 	memcpy(s, yytext+1, len - 2);
 	*lvalp = lac_extty_box(LREG_STRING, s, len-2);
-	return ATOM;
+	return STRING;
 }
 
 (({DIGIT}+({SPECIAL}|{ALPHA}))|{ALPHA}|{SP_INIT})({SPECIAL}|{ALPHA}|{DIGIT})* {
@@ -143,7 +143,7 @@ SIGN [+|-]
 	for (i = 0; i < len; i++)
 		*(s+i) = toupper((int)*(yytext+i));
 	*lvalp = intern_symbol(s);
-	return ATOM;
+	return SYMBOL;
 };
 
 ,@ { return COMMA_AT; }

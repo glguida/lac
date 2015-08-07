@@ -39,7 +39,10 @@ void sexpr_error (lreg_t *lr, void *scanner, const char *msgp)  /* Called by yyp
 %param { void *scan }
 
 %token ENDOFFILE
-%token ATOM
+%token NIHIL
+%token STRING
+%token INTEGER
+%token SYMBOL
 %token DELIMITER
 %token COMMA_AT
 
@@ -48,7 +51,7 @@ void sexpr_error (lreg_t *lr, void *scanner, const char *msgp)  /* Called by yyp
 input: | input ENDOFFILE { return -1;}
        | input sexpr     { *result = $2; YYACCEPT;};
 
-sexpr:  ATOM ;
+sexpr: atom ;
        | '\'' sexpr { $$ = cons(sym_quote, cons($2, NIL)); }
        | '`' sexpr { $$ = cons(sym_quasiquote, cons($2, NIL)); }
        | COMMA_AT sexpr { $$ = cons(sym_splice, cons($2, NIL)); }
@@ -57,11 +60,12 @@ sexpr:  ATOM ;
        | '(' ')' { $$ = NIL; }
        | list { $$ = $1; }
 
-
 list: '(' sexpr listelem ')' { $$ = cons($2,$3); }
 ;
 listelem: /*EMPTY*/ { $$ = NIL; }
           | sexpr listelem { $$ = cons($1,$2); }
+
+atom: SYMBOL | STRING | INTEGER | NIHIL
 
 %%
 
