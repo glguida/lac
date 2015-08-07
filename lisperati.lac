@@ -1,3 +1,4 @@
+(defmacro defspel (&rest rest) `(defmacro ,@rest))
 (define *objects* '(whiskey-bottle bucket frog chain))
 (define *map* '((living-room (you are in the living-room of a wizards house. there is a wizard snoring loudly on the couch.)
                            (west door garden)  
