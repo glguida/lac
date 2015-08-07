@@ -389,6 +389,7 @@ static void _qquote(lreg_t sexp, lenv_t *env, lreg_t *first, lreg_t *last, int n
 
 		default:
 		  *first = tosplice;
+		  *last = cons(NIL,NIL);
 		  break;
 		}
 	    }
