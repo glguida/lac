@@ -148,7 +148,10 @@ void sexpr_print(FILE *f, lreg_t lr)
       fprintf(f, "() ");
       break;
     case LREG_SYMBOL:
-      fprintf(f, "%s ", (char *)lreg_raw_ptr(lr));
+      fprintf(f, "%s", (char *)lreg_raw_ptr(lr));
+      break;
+    case LREG_STRING:
+      fprintf(f, "\"%s\"", (char *)lreg_raw_ptr(lr));
       break;
     case LREG_CONS:
       fprintf(f, "( ");

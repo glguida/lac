@@ -55,14 +55,13 @@ enum lreg_type
   {
     LREG_CONS = 0,  /* Cons cells. */
     LREG_SYMBOL,    /* Symbols. */
-    LREG_ENV,       /* Symbol Table */
+    LREG_STRING,    /* String. */
     LREG_LLPROC,    /* C procedures. */
     LREG_LAMBDA,    /* Lambda procedures. */
     LREG_MACRO,     /* Macro procedures. */
     LREG_NIL,       /* NIL. */
     LREG_EXTT,      /* External Type. */
     /* EXTTYs */
-    LREG_STRING,    /* String, Fixed External type. */
     LREG_INTEGER,   /* Integers, Fixed External type. */
     LREG_AVAIL,
     LREG_TYPES=256
@@ -110,6 +109,19 @@ static inline unsigned lreg_type(lreg_t lr)
     return ((struct treg_hdr *)lreg_raw_ptr(lr))->type;
   default:
     return raw_type;
+  }
+}
+
+static inline void *lreg_ptr(lreg_t lr)
+{
+  unsigned raw_type = lr & LREG_TYPE_MASK;
+  void *lreg_ptr = lreg_raw_ptr(lr);
+
+  switch(raw_type) {
+  case LREG_EXTT:
+    return ((struct treg_hdr *)lreg_ptr)->ptr;
+  default:
+    return lreg_ptr;
   }
 }
 

@@ -674,7 +674,7 @@ LAC_API static lreg_t proc_load(lreg_t args, lenv_t *argenv, lenv_t *env)
   if ( lreg_type(arg1) != LREG_STRING )
     _ERROR_AND_RET("Syntax error in load");
 
-  lac_extty_unbox(arg1, (void **)&file);
+  file = (char *)lreg_raw_ptr(arg1);
   f = fopen((char *)file, "r");
   if ( f == NULL )
     _ERROR_AND_RET("Could not open file");

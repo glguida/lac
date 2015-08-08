@@ -27,17 +27,18 @@
 
 static void string_print(FILE *fd, lreg_t lr)
 {
-
   char *s;
-  lac_extty_unbox(lr, (void **)&s);
+
+  s = (char *)lreg_raw_ptr(lr);
   fprintf(fd, "\"%s\" ", s);
 }
 
 static lreg_t string_eq(lreg_t arg1, lreg_t arg2)
 {
   char *s1, *s2;
-  lac_extty_unbox(arg1, (void **)&s1);
-  lac_extty_unbox(arg2, (void **)&s2);
+
+  s1 = (char *)lreg_raw_ptr(arg1);
+  s2 = (char *)lreg_raw_ptr(arg2);
   if ( s1 == s2 )
     return sym_true;
   return sym_false;
@@ -47,10 +48,9 @@ static int string_compare(lreg_t arg1, lreg_t arg2)
 {
   int d;
   char *s1, *s2;
-  lac_extty_unbox(arg1, (void **)&s1);
-  lac_extty_unbox(arg2, (void **)&s2);
+  s1 = (char *)lreg_raw_ptr(arg1);
+  s2 = (char *)lreg_raw_ptr(arg2);
   d = strcmp(s1, s2);
-  printf("strcmp = %s %s %d\n", s1, s2, d);
   return d;
 }
 
@@ -84,15 +84,8 @@ LAC_API static lreg_t proc_string_equal(lreg_t args, lenv_t *argenv, lenv_t *env
 
 LAC_DEFINE_TYPE_PFUNC(string, LREG_STRING)
 
-static lac_exttype_t string_ty = {
-	.name = "string",
-	.print = string_print,
-	.eq = string_eq
-};
-
 void string_init(lenv_t *env)
 {
-  lac_extty_register(LREG_STRING, &string_ty);
   lac_extproc_register(env, "STRINGP", LAC_TYPE_PFUNC(string));
   lac_extproc_register(env, "STRING-LESS", proc_string_lessp);
   lac_extproc_register(env, "STRING-GREATER", proc_string_greaterp);

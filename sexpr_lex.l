@@ -132,7 +132,7 @@ SIGN [+|-]
 	size_t len = strlen(yytext);
 	char *s = lac_alloc(len - 1);
 	memcpy(s, yytext+1, len - 2);
-	*lvalp = lac_extty_box(LREG_STRING, s, len-2);
+	*lvalp = lreg_raw(s, LREG_STRING);
 	return STRING;
 }
 
