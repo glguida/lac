@@ -82,7 +82,7 @@ struct treg_hdr {
 typedef struct {
   char *name;
   void (*print)(FILE *fd, lreg_t lr);
-  lreg_t (*eq)(lreg_t arg1, lreg_t arg2);
+  lreg_t (*equal)(lreg_t arg1, lreg_t arg2);
 } lac_exttype_t;
 
 static inline lreg_t lreg_raw(void *ptr, unsigned type)

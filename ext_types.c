@@ -62,17 +62,24 @@ int lac_extty_print(FILE *fd, lreg_t lr)
 	return 1;
 }
 
-int lacint_extty_eq(lreg_t arg1, lreg_t arg2, lreg_t *ans)
+int lacint_extty_equal(lreg_t arg1, lreg_t arg2)
 {
+	int rc = 0;
 	unsigned typeno1 = lac_extty_get_type(arg1);
 	unsigned typeno2 = lac_extty_get_type(arg2);
 
-	if ( EXTTY_IS_VALID(typeno1)
-	     && EXTTY_IS_VALID(typeno2)
-	     && typeno1 == typeno2 
-	     && ext_types[typeno1] != NULL )
-		*ans = ext_types[typeno1]->eq(arg1, arg2);
-        else
-		return 0;
-	return 1;
+	if ( !EXTTY_IS_VALID(typeno1)
+	     || !EXTTY_IS_VALID(typeno2)
+	     || typeno1 != typeno2 
+	     || ext_types[typeno1] == NULL )
+		raise_exception("Internal error", NIL);
+
+	if (ext_types[typeno1]->equal == NULL) {
+		void *ptr1 = ((struct treg_hdr *)lreg_raw_ptr(arg1))->ptr;
+		void *ptr2 = ((struct treg_hdr *)lreg_raw_ptr(arg2))->ptr;
+		rc = ptr1 == ptr2;
+	} else
+		rc = ext_types[typeno1]->equal(arg1, arg2);
+
+	return rc;
 }

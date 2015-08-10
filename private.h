@@ -39,7 +39,7 @@
 #define is_lambda(lr) (lreg_raw_type(lr) == LREG_LAMBDA)
 #define is_macro(lr) (lreg_raw_type(lr) == LREG_MACRO)
 
-int lacint_extty_eq(lreg_t arg1, lreg_t arg2, lreg_t * ans);
+int lacint_extty_equal(lreg_t arg1, lreg_t arg2);
 
 #define HT_SIZE 32
 

@@ -505,56 +505,45 @@ LAC_API static lreg_t proc_rplacd(lreg_t args, lenv_t *argenv, lenv_t *env)
 LAC_API static lreg_t proc_eq(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
   _EXPECT_ARGS(args, 2);
-  lreg_t ans = sym_false;
   lreg_t arg1 = ARGEVAL(car(args), argenv);
   lreg_t arg2 = ARGEVAL(car(cdr(args)), argenv);
 
-  if ( arg1 == arg2 )
-    ans = sym_true;
-  else
-    {
-      /* Special type. We don't use memory tagging but pointer
-	 tagging, so this is a necessary evil. */
-      if ( lreg_type(arg1) == lreg_type(arg2) )
-        lacint_extty_eq(arg1, arg2, &ans);
-    }
-  return ans;
+  return (lreg_type(arg1) == lreg_type(arg2)
+	  && lreg_ptr(arg1) == lreg_ptr(arg2)) ? sym_true : sym_false;
 }
 
-#if 0
-LAC_API static lreg_t proc_apply(lreg_t args, lenv_t *env)
+LAC_API static lreg_t proc_atom_equal(lreg_t args, lenv_t *argenv, lenv_t *env)
 {
-  _EXPECT_ARGS(args, 2);
-  lreg_t arg1 = eval(car(args), env);
-  lreg_t arg2 = eval(car(cdr(args)), env);
+	_EXPECT_ARGS(args, 2);
+	lreg_t arg1 = ARGEVAL(car(args), argenv);
+	lreg_t arg2 = ARGEVAL(car(cdr(args)), argenv);
+	int rc = 0;
 
-  return apply(arg1, arg2, NULL, env);
+	if (lreg_type(arg1) != lreg_type(arg2))
+		raise_exception("types mismatch", cons(arg1, arg2));
+
+	switch(lreg_raw_type(arg1)) {
+	case LREG_NIL:
+		rc = 1;
+		break;
+	case LREG_LLPROC:
+	case LREG_LAMBDA:
+	case LREG_MACRO:
+	case LREG_SYMBOL:
+		rc = lreg_raw_ptr(arg1) == lreg_raw_ptr(arg2);
+		break;
+	case LREG_STRING:
+		rc = !strcmp(lreg_raw_ptr(arg1), lreg_raw_ptr(arg2));
+		break;
+	case LREG_EXTT:
+		rc = lacint_extty_equal(arg1, arg2);
+		break;
+	default:
+		raise_exception("not an atom", arg1);
+	}
+
+	return rc ? sym_true : sym_false;
 }
-#endif
-
-#if 0
-/* Special Form */
-LAC_API static lreg_t proc_cond(lreg_t args, lenv_t *env)
-{
-  /* Undefinite number of arguments */
-  lreg_t cond = NIL;
-
-  while ( args != NIL ) {
-      lreg_t test = car(args);
-      if ( !is_cons(test) )
-	_ERROR_AND_RET("Syntax error in cond");
-
-      cond = eval(car(test), env);
-      /* Lisp-specific! Scheme (as for R5RS) checks for #t,
-       * though guile doesn't.  */
-      if ( cond != NIL ) {
-	      return cdr(test) == NIL ? cond : evlist(cdr(test), env, 1);
-      }
-      args = cdr(args);
-  }
-  return NIL;
-}
-#endif
 
 /* Special Form */
 LAC_API static lreg_t proc_labels(lreg_t args, lenv_t *argenv, lenv_t *env)
@@ -728,6 +717,7 @@ static void machine_init(lenv_t *env)
   lac_extproc_register(env,"RPLACA", proc_rplaca);
   lac_extproc_register(env,"RPLACD", proc_rplacd);
   lac_extproc_register(env,"EQ", proc_eq);
+  lac_extproc_register(env, "ATOM-EQUAL", proc_atom_equal);
   lac_extproc_register(env,"LOAD", proc_load);
   lac_extproc_register(env,"SET", proc_set);
   lac_extproc_register(env,"GENSYM", proc_gensym);

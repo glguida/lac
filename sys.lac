@@ -68,10 +68,9 @@
 
 (defun equal (x y)
   (cond
-   ((and (atom x) (atom y))		(eq x y))
-   ((and (consp x)
-	 (consp y)
-	 (equal (car x) (car y)))	(equal (cdr x) (cdr y)))))
+   ((atom x) (cond ((atom y) (atom-equal x y))))
+   ((consp x)(cond ((consp y) (cond ((equal (car x) (car y))
+				     (equal (cdr x) (cdr y)))))))))
 
 (defun list (&rest y) y)
 

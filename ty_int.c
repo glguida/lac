@@ -34,21 +34,13 @@ static void int_print(FILE *fd, lreg_t lr)
   intptr_t n;
 
   INT_UNBOX(lr, n);
-  fprintf(fd, "%ld ", n);
-}
-
-static lreg_t int_eq(lreg_t arg1, lreg_t arg2)
-{
-  intptr_t n1, n2;
-  INT_UNBOX(arg1, n1);
-  INT_UNBOX(arg2, n2);
-  return (n1 == n2) ? sym_true : sym_false;
+  fprintf(fd, "%ld", n);
 }
 
 static lac_exttype_t int_ty = { 
 	.name = "integer",
 	.print = int_print,
-	.eq = int_eq,
+	.equal = NULL,
 };
 
 
