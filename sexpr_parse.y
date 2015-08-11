@@ -118,25 +118,26 @@ sexpr_read_stop(void *yyscan)
  * Print
  */
 
-static void sexpr_print_cons(FILE *f, lreg_t lr)
+static void sexpr_print_cons(FILE *f, lreg_t lr, const char *h)
 {
   lreg_t a = car(lr);
   lreg_t d = cdr(lr);
+
+  printf(h);
   sexpr_print(f, a);
 
-  if (d == NIL)
-    {
-      fprintf(f, ") ");
-      return;
-    }
+  if (d == NIL) {
+    fprintf(f, ")");
+    return;
+  }
 
   if (lreg_raw_type(d) == LREG_CONS)
-    sexpr_print_cons(f, d);
+    sexpr_print_cons(f, d, " ");
   else
     {
-      fprintf(f, ". ");
+      fprintf(f, " . ");
       sexpr_print(f, cdr(lr));
-      fprintf(f, ") ");
+      fprintf(f, ")");
     }
 }
 
@@ -145,7 +146,7 @@ void sexpr_print(FILE *f, lreg_t lr)
   switch ( lreg_type(lr) )
     {
     case LREG_NIL:
-      fprintf(f, "() ");
+      fprintf(f, "()");
       break;
     case LREG_SYMBOL:
       fprintf(f, "%s", (char *)lreg_raw_ptr(lr));
@@ -154,17 +155,16 @@ void sexpr_print(FILE *f, lreg_t lr)
       fprintf(f, "\"%s\"", (char *)lreg_raw_ptr(lr));
       break;
     case LREG_CONS:
-      fprintf(f, "( ");
-      sexpr_print_cons(f, lr);
+      sexpr_print_cons(f, lr, "(");
       break;
     case LREG_MACRO:
-      fprintf(f, "<#MACRO> ");
+      fprintf(f, "<#MACRO>");
       break;
     case LREG_LAMBDA:
-      fprintf(f, "<#LAMBDA> ");
+      fprintf(f, "<#LAMBDA>");
       break;
     case LREG_LLPROC:
-      fprintf(f, "<#LLPROC> ");
+      fprintf(f, "<#LLPROC>");
       break;
     default:
       if ( !lac_extty_print(f, lr) )
