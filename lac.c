@@ -53,8 +53,6 @@ int repl(FILE *infd, FILE *outfd, FILE *errfd)
 
   sexpr_read_start(infd, &scan);
   do {
-    if ( isatty(fileno(outfd)) )    
-      fprintf(outfd, "LAC>");
     r = sexpr_read(&res, scan);
 
     gettimeofday(&t1, NULL);

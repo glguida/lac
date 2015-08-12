@@ -36,7 +36,7 @@ static int readline_getc(void)
 
   /* First run */
   if ( buf == NULL ) {
-    buf = readline("");
+    buf = readline("LAC>");
     if ( buf != NULL && *buf != '\0' )
 	add_history(buf);
     curchar = 0;
