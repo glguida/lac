@@ -90,7 +90,8 @@
   (cond
    ((null y)        NIL)
    ((null (caar y)) (apply append (cdr y)))
-   (t               (cons (caar y) (apply append (cons (cdar y) (cdr y)))))))
+   (t               (cons (caar y)
+                          (apply append (cons (cdar y) (cdr y)))))))
 
 (defun assoc (x a)
   (cond
